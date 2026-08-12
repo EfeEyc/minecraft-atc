@@ -34,7 +34,7 @@ A visual Aerodrome Control training tool to be used with Minecraft, it is fully 
 
 ## Recommended Mods
 
-- [WebDisplays](https://www.curseforge.com/minecraft/mc-mods/webdisplays) mod to display the radar and awos in Minecraft.
+- [WebDisplays](https://www.curseforge.com/minecraft/mc-mods/webdisplays) mod to display the awos in Minecraft.
 - [OpenPAC](https://www.curseforge.com/minecraft/mc-mods/open-parties-and-claims) to make forceloading chunks easier.
 - [Vivecraft](https://www.curseforge.com/minecraft/mc-mods/vivecraft) for VR support on the Minecraft side. You don't need this to use the VR version of the site.
 
