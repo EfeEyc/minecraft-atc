@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">AWOS Display</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #020617;
+            -webkit-font-smoothing: antialiased;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.4) 0%, rgba(2, 6, 23, 1) 100%),
+                linear-gradient(rgba(100, 150, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(100, 150, 255, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 50px 50px, 50px 50px;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+
+        .glass-panel {
+            position: relative;
+            background: rgba(15, 25, 40, 0.65);
+            backdrop-filter: blur(14px);
+            border: 1px solid rgba(140, 190, 255, 0.25);
+            border-top: 1px solid rgba(220, 240, 255, 0.45);
+            box-shadow: 
+                0 20px 50px rgba(0, 0, 0, 0.7), 
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                0 0 60px rgba(100, 170, 255, 0.05);
+            overflow: hidden;
+        }
+
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at 15% 10%, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .glass-panel::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 10%; width: 80%; height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(180, 220, 255, 0.45), transparent);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Compass specific styles */
+        .compass-container {
+            position: relative;
+            width: 380px; 
+            height: 380px;
+            margin: 0 auto;
+            user-select: none;
+        }
+
+        .compass-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px; 
+            height: 300px;
+            border-radius: 50%;
+            border: 6px solid #1e293b;
+            background: radial-gradient(circle, #0f172a 0%, #020617 100%);
+            box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.5);
+            z-index: 1;
+        }
+
+        .compass-number {
+            position: absolute;
+            color: #94a3b8;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 16px;
+            transform-origin: center;
+            user-select: none;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .compass-number.cardinal {
+            color: #f97316;
+            font-size: 22px;
+            font-weight: 900;
+            text-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
+        }
+
+        /* Labels */
+        .text-label-tech {
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 0.15em;
+            color: #475569;
+        }
+
+        .readout-recessed {
+            background: rgba(0, 0, 0, 0.4) !important;
+            border: 1px solid rgba(0, 0, 0, 0.6);
+            border-radius: 16px;
+            box-shadow: 
+                inset 0 8px 16px rgba(0, 0, 0, 1),
+                inset 0 1px 4px rgba(0, 0, 0, 0.8),
+                0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .runway-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 24px; 
+            height: 280px; 
+            background: rgba(30, 41, 59, 0.5); 
+            border: 2px solid rgba(148, 163, 184, 0.2);
+            transform: translate(-50%, -50%) rotate(var(--rwy-rot, 30deg)); 
+            pointer-events: none;
+            z-index: 2; 
+            border-radius: 2px;
+        }
+        
+        .runway-line::after {
+            content: '';
+            position: absolute;
+            top: 5px;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            background: repeating-linear-gradient(to bottom, 
+                rgba(255,255,255,0.4) 0, 
+                rgba(255,255,255,0.4) 12px, 
+                transparent 12px, 
+                transparent 24px
+            );
+        }
+
+        .runway-label-top {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .runway-label-bottom {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%) rotate(180deg);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 800;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .compass-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 145px;
+            background: transparent;
+            transform-origin: bottom center; 
+            transform: translate(-50%, -100%) rotate(0deg);
+            pointer-events: none;
+            z-index: 20;
+            transition: transform 2s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+
+        .arrow-head {
+            position: absolute;
+            top: -15px;
+            left: -10px;
+            width: 0; 
+            height: 0; 
+            border-left: 13px solid transparent;
+            border-right: 13px solid transparent;
+            border-bottom: 25px solid #ff7700; 
+            filter: drop-shadow(0 0 10px rgba(255, 119, 0, 0.5));
+        }
+        
+        .arrow-shaft {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #ff7700;
+            box-shadow: 0 0 30px rgba(255, 119, 0, 0.4);
+        }
+
+        .speed-dial {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 130px;
+            height: 130px;
+            background: #020617;
+            border: 4px solid #1e293b;
+            border-radius: 50%;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 50px rgba(0,0,0,1), inset 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .digital-font {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 800;
+        }
+
+        /* Status Lights */
+        .led {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #334155;
+            display: inline-block;
+        }
+        .led.on { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+
+        @media (max-width: 640px) {
+            .compass-container { zoom: 0.7; }
+            .glass-panel { padding: 1.25rem !important; min-height: auto !important; }
+            .readout-recessed { padding: 1rem !important; }
+            .gap-10 { gap: 1.5rem !important; }
+            .text-5xl, .text-6xl { font-size: 2.25rem !important; }
+            .text-7xl { font-size: 3rem !important; }
+            #disp-utc-clock { font-size: 2.25rem !important; }
+            body { padding: 1rem !important; }
+        }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen flex flex-col p-10 sm:p-4 font-sans overflow-x-hidden overflow-y-auto">
+
+    <!-- Main Content Area -->
+    <div class="flex-1 w-full grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
+        
+        <!-- LEFT COLUMN: Compass & Clock -->
+        <div class="flex flex-col gap-10">
+            <div class="glass-panel p-10 rounded-[2.5rem] flex flex-col items-center justify-center min-h-[500px]">
+                <div class="readout-recessed p-12 w-full flex flex-col items-center justify-center relative overflow-visible h-full">
+                    <!-- Direction Text Readout -->
+                    <div class="absolute top-8 right-10 text-right pointer-events-none">
+                        <div class="text-[10px] text-slate-500 font-black tracking-[0.3em] mb-[-2px] uppercase">WIND BEARING</div>
+                        <div id="dir-text" class="text-5xl font-black text-white digital-font" style="text-shadow: 0 0 20px rgba(255,255,255,0.2);">---°</div>
+                    </div>
+
+                    <!-- Compass -->
+                    <div class="compass-container relative z-10" id="compass">
+                        <div class="compass-ring">
+                            <div class="runway-line">
+                                <span class="runway-label-top" id="rwy-top">03</span>
+                                <span class="runway-label-bottom" id="rwy-bot">21</span>
+                            </div>
+                        </div>
+                        <div id="compass-face" class="absolute inset-0 pointer-events-none"></div>
+                        <div class="compass-arrow" id="windArrow">
+                            <div class="arrow-shaft"></div>
+                            <div class="arrow-head"></div>
+                        </div>
+                        <div class="speed-dial">
+                            <span class="text-xs text-slate-500 font-black mb-[-2px] tracking-widest">KTS</span>
+                            <span id="compass-speed-display" class="text-4xl font-black text-orange-500 digital-font">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Clock & Status (Combined bottom bar) -->
+            <div class="readout-recessed p-8 flex justify-between items-center bg-black/40 border-none">
+                <div class="flex flex-col">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-slate-500 font-black tracking-[0.4em] text-[10px] uppercase">STATION STATUS: <span id="conn-status" class="text-red-500">OFFLINE</span></span>
+                        <div id="led-rx" class="led" style="width: 6px; height: 6px;"></div>
+                    </div>
+                    <span class="text-slate-500 font-black tracking-[0.4em] text-[10px] uppercase">ZULU TIME REFERENCE</span>
+                </div>
+                <span id="disp-utc-clock" class="text-6xl font-black text-white digital-font tracking-tight">00:00:00 Z</span>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Telemetry -->
+        <div class="flex flex-col gap-10">
+            
+            <!-- Wind Dynamics -->
+            <div class="glass-panel p-8 rounded-[2rem] flex flex-col gap-8">
+                <header class="flex items-center gap-4 border-b border-white/5 pb-4">
+                    <div class="w-2 h-6 bg-orange-500 rounded-full shadow-[0_0_15px_#f97316]"></div>
+                    <h2 class="text-white text-sm font-black tracking-[0.4em] uppercase">WIND DYNAMICS</h2>
+                </header>
+                
+                <div class="grid grid-cols-2 gap-8">
+                    <div class="readout-recessed p-8 flex flex-col items-center">
+                        <span class="text-label-tech mb-4">SURFACE VELOCITY</span>
+                        <div class="flex items-baseline gap-4">
+                            <span id="card-windSpd" class="text-7xl font-black text-orange-500 digital-font">--</span>
+                            <span class="text-sm text-orange-500/50 font-black tracking-widest">KTS</span>
+                        </div>
+                    </div>
+                    <div class="readout-recessed p-8 flex flex-col items-center">
+                        <span class="text-label-tech mb-4">PEAK GUST</span>
+                        <div class="flex items-baseline gap-4">
+                            <span id="card-windGust" class="text-7xl font-black text-slate-300 digital-font">--</span>
+                            <span class="text-sm text-slate-500 font-black tracking-widest uppercase">KTS</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meterology & Pressure -->
+            <div class="glass-panel p-8 rounded-[2rem] flex flex-col gap-8">
+                <header class="flex items-center gap-4 border-b border-white/5 pb-4">
+                    <div class="w-2 h-6 bg-blue-500 rounded-full shadow-[0_0_15px_#3b82f6]"></div>
+                    <h2 class="text-white text-sm font-black tracking-[0.4em] uppercase">METEROLOGY & PRESSURE</h2>
+                </header>
+
+                <div class="grid grid-cols-3 gap-6">
+                    <div class="readout-recessed p-6 flex flex-col items-center">
+                        <span class="text-label-tech mb-2">TEMPERATURE</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="card-temp" class="text-4xl font-black text-white digital-font">--</span>
+                            <span class="text-xs text-slate-500 font-black">°C</span>
+                        </div>
+                    </div>
+                    <div class="readout-recessed p-6 flex flex-col items-center">
+                        <span class="text-label-tech mb-2">DEW POINT</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="card-dew" class="text-4xl font-black text-white digital-font">--</span>
+                            <span class="text-xs text-slate-500 font-black">°C</span>
+                        </div>
+                    </div>
+                    <div class="readout-recessed p-6 flex flex-col items-center">
+                        <span class="text-label-tech mb-2">VISIBILITY</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="card-vis" class="text-4xl font-black text-white digital-font">----</span>
+                            <span class="text-xs text-slate-500 font-black">M</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-6">
+                    <div class="readout-recessed p-6 flex flex-col items-center">
+                        <span class="text-label-tech mb-2">ALTIMETER (QNH)</span>
+                        <div class="flex items-baseline gap-2">
+                            <span id="card-qnh" class="text-5xl font-black text-blue-400 digital-font">----</span>
+                            <span class="text-xs text-blue-500/50 font-black uppercase">hPa</span>
+                        </div>
+                    </div>
+                    <div class="readout-recessed p-6 flex flex-col items-center">
+                        <span class="text-label-tech mb-2">FIELD (QFE)</span>
+                        <div class="flex items-baseline gap-2">
+                            <span id="card-qfe" class="text-5xl font-black text-blue-400 digital-font">----</span>
+                            <span class="text-xs text-blue-500/50 font-black uppercase">hPa</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tempo GIF (Hidden) -->
+    <img id="tempo-gif" src="" style="display: none; position: fixed; inset: 0; margin: auto; width: 100vw; height: 100vh; object-fit: contain; background: rgba(0,0,0,0.95); z-index: 9999;" />
+
+    <script>
+        const statusText = document.getElementById('conn-status');
+        const ledRx = document.getElementById('led-rx');
+        let localState = { windDir: 340, windSpd: 0, windGust: 0, temp: 0, dew: 0, vis: 9999, qnh: 1013, qfe: 898 };
+        let lastTempoTrigger = null;
+        let lastKeepGoingTrigger = null;
+
+        const arrow = document.getElementById('windArrow');
+        const compassSpeedDisplay = document.getElementById('compass-speed-display');
+        const dirTextDisplay = document.getElementById('dir-text');
+
+        function playGif(url) {
+            const gif = document.getElementById('tempo-gif');
+            if(gif) {
+                gif.src = url + "?" + new Date().getTime();
+                gif.style.display = 'block';
+                setTimeout(() => {
+                    gif.style.display = 'none';
+                    gif.src = "";
+                }, 5000); 
+            }
+        }
+
+        async function fetchFromServer() {
+            try {
+                const res = await fetch('/get_awos');
+                const data = await res.json();
+                if (data.tempoTrigger && lastTempoTrigger !== null && data.tempoTrigger > lastTempoTrigger) playGif("https://media1.tenor.com/m/KdQ8WRxaK7EAAAAC/stop-jk-simmons.gif");
+                if (data.keepGoingTrigger && lastKeepGoingTrigger !== null && data.keepGoingTrigger > lastKeepGoingTrigger) playGif("https://media1.tenor.com/m/josaiwe4bSoAAAAC/jk-simmons-whiplash.gif");
+                lastTempoTrigger = data.tempoTrigger || 0;
+                lastKeepGoingTrigger = data.keepGoingTrigger || 0;
+                localState = data;
+                flashRx();
+                updateUI();
+                if (statusText) {
+                    statusText.innerText = "ONLINE";
+                    statusText.className = "text-green-500 font-black";
+                }
+            } catch(e) {
+                console.error("Fetch error:", e);
+                if (statusText) {
+                    statusText.innerText = "OFFLINE";
+                    statusText.className = "text-red-500 font-black";
+                }
+            }
+        }
+
+        function flashRx() {
+            if (ledRx) {
+                ledRx.classList.add('on');
+                setTimeout(() => ledRx.classList.remove('on'), 200);
+            }
+        }
+
+        function updateUI() {
+            const dirStr = (localState.windDir || 0).toString().padStart(3, '0');
+            if (document.getElementById('card-windSpd')) document.getElementById('card-windSpd').innerText = localState.windSpd;
+            if (document.getElementById('card-windGust')) document.getElementById('card-windGust').innerText = localState.windGust.toString().padStart(2, '0');
+            if (document.getElementById('card-temp')) document.getElementById('card-temp').innerText = localState.temp;
+            if (document.getElementById('card-dew')) document.getElementById('card-dew').innerText = localState.dew;
+            if (document.getElementById('card-vis')) document.getElementById('card-vis').innerText = localState.vis || 9999;
+            if (document.getElementById('card-qnh')) document.getElementById('card-qnh').innerText = localState.qnh;
+            if (document.getElementById('card-qfe')) document.getElementById('card-qfe').innerText = localState.qfe || 898;
+            
+            if (compassSpeedDisplay) compassSpeedDisplay.innerText = localState.windSpd;
+            if (dirTextDisplay) dirTextDisplay.innerText = dirStr + "°";
+            updateArrowVisuals();
+        }
+
+        function updateArrowVisuals() {
+            const rotation = localState.windDir || 0;
+            if (arrow) arrow.style.transform = `translate(-50%, -100%) rotate(${rotation}deg)`;
+        }
+
+        function initCompassFace() {
+            const faceContainer = document.getElementById('compass-face');
+            if (!faceContainer) return;
+            const numberRadius = 175; 
+            for (let i = 10; i <= 360; i += 10) {
+                const label = document.createElement('div');
+                label.innerText = (i / 10).toString().padStart(2, '0');
+                const isCardinal = (i % 90 === 0);
+                label.className = `compass-number ${isCardinal ? 'cardinal' : ''}`;
+                const rad = (i - 90) * (Math.PI / 180);
+                const x = numberRadius * Math.cos(rad);
+                const y = numberRadius * Math.sin(rad);
+                label.style.left = `50%`;
+                label.style.top = `50%`;
+                label.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+                faceContainer.appendChild(label);
+            }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const h = now.getUTCHours().toString().padStart(2, '0');
+            const m = now.getUTCMinutes().toString().padStart(2, '0');
+            const s = now.getUTCSeconds().toString().padStart(2, '0');
+            const clockEl = document.getElementById('disp-utc-clock');
+            if (clockEl) clockEl.innerText = `${h}:${m}:${s} Z`;
+        }
+
+        async function initSettings() {
+            try {
+                const res = await fetch('/get_generator_settings');
+                const data = await res.json();
+                if(data.awos_airport_id) document.getElementById('page-title').innerText = data.awos_airport_id + " AWOS Display";
+                if(data.awos_rwy_top) {
+                    document.getElementById('rwy-top').innerText = data.awos_rwy_top;
+                    let topHeading = parseInt(data.awos_rwy_top) * 10;
+                    if(isNaN(topHeading) || topHeading === 0) topHeading = 360;
+                    document.documentElement.style.setProperty('--rwy-rot', topHeading + 'deg');
+                }
+                if(data.awos_rwy_bottom) document.getElementById('rwy-bot').innerText = data.awos_rwy_bottom;
+            } catch(e) {}
+        }
+
+        initCompassFace();
+        initSettings();
+        setInterval(fetchFromServer, 2000);
+        setInterval(initSettings, 5000);
+        setInterval(updateClock, 1000);
+        fetchFromServer();
+        updateClock();
+    </script>
+</body>
+</html>

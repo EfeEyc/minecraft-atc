@@ -1,0 +1,89 @@
+{
+    "aircraft_types_vfr": [
+        "DH8C",
+        "BE20",
+        "BE40",
+        "GLF4",
+        "GLF5",
+        "C172"
+    ],
+    "aircraft_types_ifr": [
+        "B777",
+        "A320",
+        "A330",
+        "B767",
+        "B747",
+        "DC8",
+        "MD11",
+        "DC10",
+        "B727",
+        "A220",
+        "A350",
+        "B737",
+        "B757",
+        "B146",
+        "DH8C",
+        "AT72",
+        "DC3",
+        "SA40",
+        "A380",
+        "PA42",
+        "C402",
+        "C172",
+        "A340"
+    ],
+    "heli_types": [
+        "CHINOOK",
+        "UH60"
+    ],
+    "airports": [
+        "LTFM",
+        "LTFJ",
+        "LTAI",
+        "LTBJ",
+        "LTFE",
+        "LTBS",
+        "LTCG",
+        "LTDA",
+        "LTFC",
+        "LTCE",
+        "LTAY"
+    ],
+    "callsign_format_aircraft_vfr": [
+        "TC-XXX"
+    ],
+    "callsign_format_aircraft_ifr": [
+        "THY###",
+        "PGT###",
+        "DLH###",
+        "SVA###",
+        "SWR###",
+        "BAW###",
+        "SXS###",
+        "AZA###",
+        "IBE###",
+        "AFL###",
+        "AFR###",
+        "KLM###",
+        "SIA###",
+        "IRA###",
+        "FHY###",
+        "GLF###",
+        "UAE###",
+        "OAL###",
+        "CFG###"
+    ],
+    "callsign_format_heli": [
+        "TC-HXX"
+    ],
+    "map_x": -257,
+    "map_z": 79.5,
+    "map_scale": 1,
+    "map_opacity": 0.5,
+    "map_rotation": 180,
+    "awos_rwy_top": "03",
+    "awos_rwy_bottom": "21",
+    "awos_rwy_rotation": 30,
+    "awos_airport_id": "LTAC",
+    "awos_default_qfe": 898
+}

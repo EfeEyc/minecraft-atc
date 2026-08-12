@@ -1,0 +1,3948 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Kule itfaiye olayı</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=JetBrains+Mono:wght@700&display=swap"
+        rel="stylesheet">
+    <style>
+        html,
+        body {
+            width: 100vw;
+            height: 100vh;
+            /* Use dynamic viewport height if supported to fix address bar/notch issues */
+            height: 100dvh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            overscroll-behavior: none;
+            position: fixed;
+            -webkit-user-select: none;
+            user-select: none;
+            background-color: #050505;
+        }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            color: #e0e0e0;
+        }
+
+        #radar {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        /* WIDGETS */
+        .widget {
+            position: absolute;
+            background: rgba(15, 20, 25, 0.7);
+            border: 1px solid rgba(100, 150, 200, 0.25);
+            border-top: 1px solid rgba(180, 220, 255, 0.25);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 10;
+            overflow: hidden;
+            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 1s ease, border-color 1s ease, box-shadow 1s ease, filter 1s ease;
+        }
+
+        /* All interactive content sits above overlays */
+        .widget>*:not(.rain-drip-overlay):not(canvas),
+        .widget button,
+        .widget input,
+        .widget label,
+        .widget h2 {
+            position: relative;
+            z-index: 5;
+        }
+
+        /* Clear weather: brighter, sunlit glass */
+        .weather-clear .widget {
+            background: rgba(25, 30, 40, 0.6);
+            border: 1px solid rgba(140, 190, 255, 0.35);
+            border-top: 1px solid rgba(220, 240, 255, 0.45);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 60px rgba(100, 170, 255, 0.05);
+            filter: brightness(1.15);
+        }
+
+        /* Sun reflection glow from top-left */
+        .widget::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(ellipse at 15% 10%,
+                    rgba(255, 255, 220, 0.12) 0%,
+                    rgba(255, 255, 255, 0.06) 25%,
+                    transparent 60%);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 1;
+            transition: opacity 1s ease;
+        }
+
+        /* Sun glow visible in clear weather */
+        .weather-clear .widget::before {
+            opacity: 1;
+        }
+
+        /* Top edge highlight glow */
+        .widget::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 10%;
+            width: 80%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(180, 220, 255, 0.3), transparent);
+            pointer-events: none;
+            z-index: 1;
+            transition: background 1s ease, height 1s ease;
+        }
+
+        /* Brighter top line in clear weather */
+        .weather-clear .widget::after {
+            height: 2px;
+            background: linear-gradient(90deg, transparent 5%, rgba(255, 250, 200, 0.5) 30%, rgba(200, 230, 255, 0.4) 70%, transparent 95%);
+        }
+
+        /* Widget Entry Animation */
+        .widget.hidden {
+            opacity: 0 !important;
+            transform: scale(0.95);
+            pointer-events: none !important;
+        }
+
+        #sidebar-left-container {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            width: 480px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            gap: 10px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #sidebar-left-container>.widget {
+            position: relative;
+            left: 0 !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            box-sizing: border-box;
+            pointer-events: auto;
+        }
+
+        #control-panel.hidden {
+            transform: translateX(-50px) scale(0.95);
+            opacity: 0 !important;
+        }
+
+        #info-panel {
+            top: 40px;
+            left: 40px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        #info-panel:hover {
+            border-color: #fff;
+        }
+
+        .flight-strip {
+            background: linear-gradient(135deg, rgba(30, 40, 50, 0.7), rgba(15, 20, 25, 0.8));
+            border-left: 4px solid #5cadff;
+            border-right: 1px solid rgba(120, 160, 200, 0.15);
+            border-top: 1px solid rgba(120, 160, 200, 0.15);
+            border-bottom: 1px solid rgba(120, 160, 200, 0.15);
+            border-radius: 0 14px 14px 0;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+
+        .fs-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #99aabb;
+        }
+
+        .fs-val {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        /* CHART SETTINGS */
+        #chart-panel {
+            top: 40px;
+            right: 40px;
+            width: 250px;
+        }
+
+        #zoom-panel {
+            top: 40px;
+            right: 40px;
+            width: 292px;
+            /* Matches strip-bay width (250) + padding (40) + border (2) */
+            box-sizing: border-box;
+            padding: 6px 6px 6px 16px;
+            display: flex;
+            flex-direction: row;
+            gap: 6px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .btn-zoom {
+            width: 46px;
+            height: 46px;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 300;
+            line-height: 1;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(60, 80, 100, 0.4), rgba(30, 45, 60, 0.6));
+            border: 1px solid rgba(120, 160, 200, 0.2);
+            color: #e0e0e0;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            text-transform: none;
+        }
+
+        .btn-zoom:hover {
+            background: linear-gradient(135deg, rgba(80, 110, 140, 0.6), rgba(40, 60, 80, 0.8));
+            border-color: rgba(180, 220, 255, 0.5);
+            color: #fff;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 16px rgba(0, 0, 0, 0.3), 0 0 12px rgba(92, 173, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .btn-zoom:active {
+            background: rgba(92, 173, 255, 0.4) !important;
+            border-color: #5cadff !important;
+            color: #fff !important;
+            box-shadow: 0 0 20px rgba(92, 173, 255, 0.6) !important;
+            transform: scale(0.9) translateY(0) !important;
+        }
+
+        /* STRIP BAY */
+        #strip-bay {
+            top: 116px;
+            right: 40px;
+            width: 250px;
+            bottom: 40px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #strip-container {
+            overflow-y: auto;
+            overflow-x: hidden;
+            flex: 1;
+            padding-right: 10px;
+        }
+
+        #strip-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #strip-container::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        #strip-container::-webkit-scrollbar-thumb {
+            background: #445566;
+            border-radius: 3px;
+        }
+
+        #cat-container-ground {
+            overflow-y: auto;
+            overflow-x: hidden;
+            max-height: 95px;
+            /* Fits approximately 2 ground strips */
+            padding-right: 10px;
+        }
+
+        #cat-container-ground::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #cat-container-ground::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        #cat-container-ground::-webkit-scrollbar-thumb {
+            background: #445566;
+            border-radius: 3px;
+        }
+
+        .sidebar-strip {
+            background: linear-gradient(135deg, rgba(30, 40, 50, 0.6), rgba(15, 20, 25, 0.8));
+            border-left: 4px solid #556677;
+            border-right: 1px solid rgba(120, 160, 200, 0.15);
+            border-top: 1px solid rgba(120, 160, 200, 0.15);
+            border-bottom: 1px solid rgba(120, 160, 200, 0.15);
+            border-radius: 0 14px 14px 0;
+            padding: 10px;
+            margin-bottom: 6px;
+            cursor: pointer;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 6px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, border-color 0.3s;
+        }
+
+        .sidebar-strip:hover {
+            background: linear-gradient(135deg, rgba(50, 70, 90, 0.8), rgba(25, 35, 45, 0.9));
+            border-left-color: #00d2ff;
+            border-right: 1px solid rgba(180, 220, 255, 0.4);
+            border-top: 1px solid rgba(180, 220, 255, 0.4);
+            border-bottom: 1px solid rgba(180, 220, 255, 0.4);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(0, 210, 255, 0.2);
+            transform: translateX(4px);
+        }
+
+        .sidebar-strip.active {
+            background: linear-gradient(135deg, rgba(60, 85, 115, 0.9), rgba(30, 45, 60, 1));
+            border-left-color: #5cadff !important;
+            border-right: 1px solid rgba(180, 220, 255, 0.6);
+            border-top: 1px solid rgba(180, 220, 255, 0.6);
+            border-bottom: 1px solid rgba(180, 220, 255, 0.6);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 8px 16px rgba(0, 0, 0, 0.4), 0 0 15px rgba(92, 173, 255, 0.4);
+            transform: translateX(4px);
+        }
+
+        .strip-cat-header {
+            font-size: 10px;
+            color: #8899aa;
+            font-weight: bold;
+            margin: 10px 0 5px 0;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(136, 153, 170, 0.2);
+            padding-bottom: 2px;
+        }
+
+        .strip-cat-header:first-child {
+            margin-top: 0;
+        }
+
+        /* THEMES */
+        .theme-arrival {
+            border-left-color: #ffcc00 !important;
+            background: linear-gradient(135deg, rgba(50, 40, 10, 0.6), rgba(25, 20, 5, 0.8)) !important;
+        }
+
+        .theme-arrival:hover,
+        .theme-arrival.active {
+            background: linear-gradient(135deg, rgba(80, 60, 20, 0.8), rgba(40, 30, 10, 0.9)) !important;
+            border-left-color: #ffea00 !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 204, 0, 0.2);
+        }
+
+        .theme-departure {
+            border-left-color: #00d2ff !important;
+            background: linear-gradient(135deg, rgba(10, 30, 50, 0.6), rgba(5, 15, 25, 0.8)) !important;
+        }
+
+        .theme-departure:hover,
+        .theme-departure.active {
+            background: linear-gradient(135deg, rgba(20, 50, 80, 0.8), rgba(10, 25, 40, 0.9)) !important;
+            border-left-color: #5cadff !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(0, 210, 255, 0.2);
+        }
+
+        .theme-local {
+            border-left-color: #ffffff !important;
+            background: linear-gradient(135deg, rgba(40, 40, 40, 0.6), rgba(20, 20, 20, 0.8)) !important;
+        }
+
+        .theme-local:hover,
+        .theme-local.active {
+            background: linear-gradient(135deg, rgba(70, 70, 70, 0.8), rgba(35, 35, 35, 0.9)) !important;
+            border-left-color: #ffffff !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 255, 255, 0.2);
+        }
+
+        .theme-ground {
+            border-left-color: #556677 !important;
+        }
+
+        .theme-undefined {
+            border-left-color: #888888 !important;
+        }
+
+        @keyframes ghost-blink {
+            0% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
+
+            100% {
+                opacity: 0.3;
+            }
+        }
+
+        .ghost-strip {
+            animation: ghost-blink 1.5s infinite;
+            pointer-events: none;
+            background: linear-gradient(135deg, rgba(40, 40, 40, 0.6), rgba(20, 20, 20, 0.8));
+            border-left-color: #777 !important;
+        }
+
+        @keyframes undefined-vehicle-glow {
+            0% {
+                box-shadow: 0 0 4px rgba(255, 170, 0, 0.2);
+                border-left-color: rgba(255, 170, 0, 0.4);
+            }
+
+            50% {
+                box-shadow: 0 0 12px rgba(255, 170, 0, 0.5), inset 0 0 8px rgba(255, 170, 0, 0.05);
+                border-left-color: rgba(255, 170, 0, 1);
+            }
+
+            100% {
+                box-shadow: 0 0 4px rgba(255, 170, 0, 0.2);
+                border-left-color: rgba(255, 170, 0, 0.4);
+            }
+        }
+
+        .undefined-vehicle-strip {
+            animation: undefined-vehicle-glow 1.5s ease-in-out infinite;
+            border-left-color: #ffaa00 !important;
+        }
+
+        .undefined-vehicle-strip .strip-callsign {
+            color: #ffaa00 !important;
+            font-size: 12px !important;
+        }
+
+        .strip-callsign {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .strip-details {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            color: #99aabb;
+            margin-top: 4px;
+        }
+
+
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #5cadff;
+            letter-spacing: 1px;
+        }
+
+        label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8899aa;
+            display: block;
+            margin-top: 5px;
+            transition: color 0.2s;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="file"] {
+            width: 100%;
+            box-sizing: border-box;
+            background: rgba(10, 15, 20, 0.6);
+            border: 1px solid rgba(120, 160, 200, 0.3);
+            color: #5cadff;
+            padding: 8px 10px;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        input:focus {
+            outline: none;
+            background: rgba(15, 25, 35, 0.8);
+            border-color: #5cadff;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 12px rgba(92, 173, 255, 0.4);
+            color: #fff;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 4px;
+            margin-top: 5px;
+        }
+
+        button {
+            flex: 1;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #fff;
+            border-radius: 8px;
+            letter-spacing: 1px;
+            background: linear-gradient(135deg, rgba(60, 80, 100, 0.4), rgba(30, 45, 60, 0.6));
+            border: 1px solid rgba(120, 160, 200, 0.2);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 6px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, rgba(80, 110, 140, 0.6), rgba(40, 60, 80, 0.8));
+            border-color: rgba(180, 220, 255, 0.4);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 8px rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: scale(0.95) translateY(0) !important;
+            transition: all 0.05s !important;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+        }
+
+        .btn-green {
+            background: linear-gradient(135deg, rgba(160, 140, 0, 0.4), rgba(120, 90, 0, 0.6));
+            border-color: rgba(255, 204, 0, 0.3);
+            color: #FFCC00;
+        }
+
+        .btn-green:hover {
+            background: linear-gradient(135deg, rgba(200, 170, 0, 0.6), rgba(140, 110, 0, 0.8));
+            border-color: rgba(255, 204, 0, 0.6);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(255, 204, 0, 0.4);
+        }
+
+        .btn-green:active {
+            background: rgba(255, 204, 0, 0.4) !important;
+            border-color: #FFCC00 !important;
+            color: #fff !important;
+            box-shadow: 0 0 20px #FFCC00 !important;
+        }
+
+        .btn-blue {
+            background: linear-gradient(135deg, rgba(0, 136, 170, 0.5), rgba(0, 85, 119, 0.7));
+            border-color: rgba(0, 221, 255, 0.4);
+            color: #fff;
+        }
+
+        .btn-blue:hover {
+            background: linear-gradient(135deg, rgba(0, 170, 220, 0.7), rgba(0, 110, 150, 0.9));
+            border-color: rgba(0, 221, 255, 0.7);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 221, 255, 0.6);
+        }
+
+        .btn-blue:active {
+            background: rgba(0, 221, 255, 0.5) !important;
+            border-color: #00ddff !important;
+            box-shadow: 0 0 25px #00ddff !important;
+        }
+
+        @keyframes sun-ray {
+            0% {
+                box-shadow: 0 0 3px rgba(255, 215, 0, 0.3);
+                text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
+                text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+            }
+
+            100% {
+                box-shadow: 0 0 3px rgba(255, 215, 0, 0.3);
+                text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
+            }
+        }
+
+        .btn-weather-clear {
+            padding: 8px;
+            /* handled by global button normally, but keep to be safe */
+            border-radius: 8px;
+            /* override default flat */
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s;
+            flex: 1;
+            color: #ffdd00;
+            border: 1px solid rgba(255, 221, 0, 0.4);
+            background: linear-gradient(135deg, rgba(60, 50, 0, 0.6), rgba(30, 20, 0, 0.8));
+            animation: sun-ray 3s infinite;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-weather-clear:hover {
+            background: linear-gradient(135deg, rgba(90, 75, 0, 0.7), rgba(45, 30, 0, 0.9));
+            transform: translateY(-1px);
+            border-color: rgba(255, 221, 0, 0.7);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 221, 0, 0.3);
+        }
+
+        .btn-weather-clear:active {
+            background: rgba(255, 221, 0, 0.4) !important;
+            border-color: #ffdd00 !important;
+            color: #fff !important;
+            box-shadow: 0 0 25px #ffdd00 !important;
+            transform: scale(0.95) !important;
+        }
+
+        @keyframes rain-drop {
+            0% {
+                background-position: 0 0;
+            }
+
+            100% {
+                background-position: -20px 40px;
+            }
+        }
+
+        .btn-weather-rain {
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 10px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, border-color 0.3s;
+            flex: 1;
+            color: #88ccff;
+            border: 1px solid rgba(136, 204, 255, 0.4);
+            background-color: rgba(0, 30, 60, 0.6);
+            background-image: linear-gradient(to bottom right, transparent 40%, rgba(100, 150, 255, 0.15) 45%, transparent 50%);
+            background-size: 20px 40px;
+            animation: rain-drop 0.6s linear infinite;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-weather-rain:hover {
+            border-color: rgba(136, 204, 255, 0.7);
+            background-color: rgba(0, 45, 90, 0.8);
+            background-image: linear-gradient(to bottom right, transparent 40%, rgba(100, 150, 255, 0.15) 45%, transparent 50%);
+            background-size: 20px 40px;
+            animation: rain-drop 0.6s linear infinite;
+            transform: translateY(-1px);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(136, 204, 255, 0.3);
+        }
+
+        .btn-weather-rain:active {
+            background: rgba(136, 204, 255, 0.4) !important;
+            background-image: linear-gradient(to bottom right, transparent 40%, rgba(100, 150, 255, 0.15) 45%, transparent 50%) !important;
+            border-color: #88ccff !important;
+            color: #fff !important;
+            box-shadow: 0 0 25px #88ccff !important;
+            transform: scale(0.95) !important;
+        }
+
+        /* HOLD Action */
+        .btn-yellow {
+            background: linear-gradient(135deg, rgba(166, 101, 85, 0.4), rgba(120, 70, 50, 0.6));
+            border-color: rgba(252, 163, 17, 0.3);
+            color: #fca311;
+        }
+
+        .btn-yellow:hover {
+            background: linear-gradient(135deg, rgba(200, 130, 100, 0.6), rgba(160, 90, 60, 0.8));
+            border-color: rgba(252, 163, 17, 0.6);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(252, 163, 17, 0.4);
+        }
+
+        .btn-yellow:active {
+            background: rgba(252, 163, 17, 0.4) !important;
+            border-color: #fca311 !important;
+            color: #fff !important;
+            box-shadow: 0 0 20px #fca311 !important;
+        }
+
+        /* KILL Action */
+        .btn-red {
+            background: linear-gradient(135deg, rgba(150, 30, 30, 0.4), rgba(100, 10, 10, 0.6));
+            border-color: rgba(255, 50, 50, 0.4) !important;
+            color: #f55 !important;
+        }
+
+        .btn-red:hover {
+            background: linear-gradient(135deg, rgba(200, 40, 40, 0.6), rgba(140, 15, 15, 0.8));
+            border-color: rgba(255, 80, 80, 0.7) !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 0, 0, 0.5);
+        }
+
+        .btn-red:active {
+            background: rgba(255, 0, 0, 0.5) !important;
+            border-color: #f00 !important;
+            color: #fff !important;
+            box-shadow: 0 0 25px #f00 !important;
+        }
+
+        .btn-action {
+            background: linear-gradient(135deg, rgba(40, 60, 80, 0.5), rgba(20, 35, 50, 0.7));
+            color: #5cadff;
+            border-color: rgba(92, 173, 255, 0.3);
+            margin-top: 5px;
+            width: 100%;
+        }
+
+        .btn-action:hover {
+            background: linear-gradient(135deg, rgba(60, 90, 120, 0.7), rgba(30, 50, 70, 0.9));
+            border-color: rgba(92, 173, 255, 0.6);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(92, 173, 255, 0.4);
+        }
+
+        .btn-action:active {
+            background: rgba(92, 173, 255, 0.4) !important;
+            border-color: #5cadff !important;
+            color: #fff !important;
+            box-shadow: 0 0 25px #5cadff !important;
+        }
+
+        .btn-tp {
+            flex: 0.4;
+            background: linear-gradient(135deg, rgba(80, 40, 100, 0.4), rgba(50, 20, 70, 0.6));
+            color: #d0f;
+            border-color: rgba(221, 0, 255, 0.3);
+        }
+
+        .btn-tp:hover {
+            background: linear-gradient(135deg, rgba(110, 50, 140, 0.6), rgba(70, 30, 100, 0.8));
+            border-color: rgba(221, 0, 255, 0.6);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(221, 0, 255, 0.4);
+        }
+
+        .btn-tp:active {
+            background: rgba(221, 0, 255, 0.4) !important;
+            border-color: #d0f !important;
+            color: #fff !important;
+            box-shadow: 0 0 25px #d0f !important;
+        }
+
+        .btn-clear-route {
+            flex: 1;
+            background: linear-gradient(135deg, rgba(100, 20, 20, 0.4), rgba(60, 10, 10, 0.6));
+            color: #f55;
+            border-color: rgba(255, 85, 85, 0.4);
+            font-size: 10px;
+        }
+
+        .btn-clear-route:hover {
+            background: linear-gradient(135deg, rgba(140, 30, 30, 0.6), rgba(80, 15, 15, 0.8));
+            border-color: rgba(255, 85, 85, 0.7);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(255, 85, 85, 0.4);
+        }
+
+        .btn-clear-route:active {
+            background: rgba(255, 85, 85, 0.4) !important;
+            border-color: #f55 !important;
+            color: #fff !important;
+            box-shadow: 0 0 25px #f55 !important;
+        }
+
+        #notif {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: linear-gradient(135deg, rgba(30, 40, 50, 0.85), rgba(15, 20, 25, 0.95));
+            border: 1px solid rgba(120, 160, 200, 0.3);
+            color: #5cadff;
+            font-weight: 600;
+            font-size: 13px;
+            letter-spacing: 1px;
+            border-radius: 12px;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 16px rgba(0, 0, 0, 0.4), 0 0 15px rgba(92, 173, 255, 0.2);
+            opacity: 0;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .paused-state {
+            border: 2px solid #f00 !important;
+        }
+
+        .paused-text {
+            color: #f00 !important;
+        }
+
+        /* Rain drip overlay on widgets */
+        .rain-drip-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            border-radius: 20px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 1.5s ease-in;
+        }
+
+        .rain-drip-overlay.active {
+            opacity: 1;
+        }
+
+        /* Animated streaks */
+        .rain-drip-overlay .streak {
+            position: absolute;
+            width: 1px;
+            background: linear-gradient(to bottom, transparent, rgba(150, 200, 255, 0.15) 30%, rgba(150, 200, 255, 0.25) 50%, rgba(150, 200, 255, 0.1) 80%, transparent);
+            animation: drip-fall linear infinite;
+            opacity: 0.6;
+        }
+
+        .rain-drip-overlay .droplet {
+            position: absolute;
+            width: 3px;
+            height: 5px;
+            background: radial-gradient(ellipse at 30% 30%, rgba(200, 230, 255, 0.5), rgba(100, 150, 200, 0.2));
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: droplet-slide linear infinite;
+            opacity: 0;
+        }
+
+        @keyframes drip-fall {
+            0% {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.6;
+            }
+
+            90% {
+                opacity: 0.4;
+            }
+
+            100% {
+                transform: translateY(500px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes droplet-slide {
+            0% {
+                transform: translateY(0);
+                opacity: 0;
+            }
+
+            5% {
+                opacity: 0.7;
+            }
+
+            80% {
+                opacity: 0.3;
+            }
+
+            100% {
+                transform: translateY(300px);
+                opacity: 0;
+            }
+        }
+
+        .drop-zone {
+            min-height: 30px;
+            padding-bottom: 5px;
+        }
+
+
+
+
+        /* Remove arrows/spinners from number inputs */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        #score-panel {
+            transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transform-origin: left center;
+        }
+
+        #score-panel.score-hidden {
+            opacity: 0 !important;
+            transform: translateX(-150px) scale(0.9) !important;
+            pointer-events: none;
+        }
+
+        @media (max-width: 950px) {
+            #awos-modal {
+                width: 95vw !important;
+                height: 90vh !important;
+                transform: translate(-50%, -50%) scale(1) !important;
+                border-radius: 12px !important;
+                overflow-y: auto !important;
+            }
+
+            #sidebar-left-container {
+                left: 5px !important;
+                bottom: 5px !important;
+                width: 160px !important;
+            }
+
+            #time-tracker-panel {
+                left: 5px !important;
+                bottom: 180px !important;
+                width: 160px !important;
+                padding: 10px !important;
+            }
+
+            #info-panel {
+                top: 5px !important;
+                left: 5px !important;
+                padding: 10px !important;
+                max-width: calc(100vw - 10px) !important;
+            }
+
+            #info-panel>div:first-child {
+                font-size: 14px !important;
+            }
+
+            #weather-panel {
+                top: 60px !important;
+                left: 5px !important;
+                width: 140px !important;
+                padding: 10px !important;
+            }
+
+            #instructor-panel {
+                top: 165px !important;
+                left: 5px !important;
+                width: 140px !important;
+                padding: 10px !important;
+            }
+
+            #score-panel {
+                top: 165px !important;
+                left: 170px !important;
+                width: 140px !important;
+                padding: 10px !important;
+            }
+
+            /* Mobile Focus Mode */
+            body.mobile-focus-mode #info-panel,
+            body.mobile-focus-mode #weather-panel,
+            body.mobile-focus-mode #instructor-panel,
+            body.mobile-focus-mode #score-panel,
+            body.mobile-focus-mode #strip-bay {
+                display: none !important;
+            }
+
+            body.mobile-focus-mode #sidebar-left-container {
+                width: 320px !important;
+                bottom: 10px !important;
+                left: 10px !important;
+                z-index: 999 !important;
+            }
+
+            body.mobile-focus-mode #time-tracker-panel {
+                left: 10px !important;
+                bottom: auto !important;
+                top: 10px !important;
+                width: 320px !important;
+                z-index: 999 !important;
+            }
+
+            #chart-panel {
+                top: 5px !important;
+                right: 5px !important;
+                width: 110px !important;
+                padding: 10px !important;
+            }
+
+            #zoom-panel {
+                top: 5px !important;
+                right: 5px !important;
+                width: auto !important;
+                padding: 6px 10px !important;
+            }
+
+            #zulu-clock-display {
+                font-size: 16px !important;
+            }
+
+            .btn-zoom {
+                width: 28px !important;
+                height: 28px !important;
+                font-size: 18px !important;
+            }
+
+            #strip-bay {
+                top: 60px !important;
+                right: 5px !important;
+                width: 130px !important;
+                bottom: 5px !important;
+            }
+
+            #creator-spawn-menu {
+                max-width: 200px !important;
+            }
+
+            .widget {
+                padding: 8px !important;
+                border-radius: 10px !important;
+            }
+
+            .strip-callsign {
+                font-size: 11px !important;
+            }
+
+            h2 {
+                font-size: 11px !important;
+                margin-bottom: 4px !important;
+            }
+
+            .btn-action,
+            .btn-green,
+            .btn-blue,
+            .btn-yellow,
+            .btn-red {
+                font-size: 9px !important;
+                padding: 6px !important;
+            }
+
+            label {
+                font-size: 9px !important;
+            }
+
+            input[type="text"],
+            input[type="number"] {
+                font-size: 10px !important;
+                padding: 6px !important;
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <canvas id="radar"></canvas>
+
+    <div id="info-panel" class="widget" onclick="toggleSystemPause()">
+        <div style="font-size: 20px; font-weight:800; color: #aabbcc; transition: 0.3s;">ATC RADAR SYSTEM <span
+                id="sys-status-text" style="color:#5cadff; transition: 0.3s;">LIVE</span></div>
+        <div id="debug-coords" style="font-size: 11px; color: #667788; margin-top: 5px;">INIT...</div>
+    </div>
+
+
+
+    <div id="zoom-panel" class="widget">
+        <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;">
+            <div
+                style="font-size: 9px; color: #8899aa; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px;">
+                ZULU TIME</div>
+            <div id="zulu-clock-display"
+                style="font-family: 'JetBrains Mono', monospace; font-size: 20px; color: #fff; font-weight: 700; text-shadow: 0 0 10px rgba(92,173,255,0.4); font-variant-numeric: tabular-nums; line-height: 1;">
+                --:--:--</div>
+        </div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="btn-action" onclick="toggleStripBay()"
+                style="height: 28px; font-size: 10px; padding: 0 8px; display: flex; align-items: center; justify-content: center;">STRIPS</button>
+            <button class="btn-zoom" onclick="adjustZoom(1.1)" title="Zoom In">+</button>
+            <button class="btn-zoom" onclick="adjustZoom(0.9)" title="Zoom Out">−</button>
+        </div>
+    </div>
+
+    <div id="weather-panel" class="widget" style="top: 140px; left: 40px; width: 250px;">
+        <h2>WEATHER</h2>
+        <div class="btn-row" style="margin-bottom:8px;">
+            <button class="btn-weather-clear" onclick="setWeather('clear')">CLEAR</button>
+            <button class="btn-weather-rain" onclick="setWeather('rain')">RAIN</button>
+        </div>
+        <button class="btn-action"
+            style="padding: 8px; font-size: 11px; font-weight: bold; width: 100%; text-decoration: none; text-align: center; display: block;"
+            onclick="toggleAwosModal()">ENVIRONMENT & AWOS MENU</button>
+    </div>
+
+    <div id="instructor-panel" class="widget" style="top: 300px; left: 40px; width: 250px;">
+        <h2>INSTRUCTOR</h2>
+        <button class="btn-action" id="btn-spawn-mode"
+            style="padding: 8px; font-size: 11px; font-weight: bold; width: 100%; text-decoration: none; text-align: center; display: block; margin-bottom: 5px;"
+            onclick="toggleAircraftSpawnMode()">SPAWN AIRCRAFT: OFF</button>
+        <button class="btn-action"
+            style="padding: 8px; font-size: 11px; font-weight: bold; width: 100%; text-decoration: none; text-align: center; display: block; margin-bottom: 5px;"
+            onclick="toggleScorePanel()">SCORING</button>
+        <button class="btn-action"
+            style="padding: 8px; font-size: 11px; font-weight: bold; width: 100%; text-decoration: none; text-align: center; display: block;"
+            onclick="toggleGenSettingsModal()">SETTINGS</button>
+    </div>
+
+    <div id="score-panel" class="widget score-hidden"
+        style="top: 300px; left: 345px; width: 250px; z-index: 9; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h2 style="margin: 0;">SCORE</h2>
+            <div id="current-score"
+                style="font-size: 24px; font-weight: bold; color: #00ff66; font-family: 'JetBrains Mono', monospace; text-shadow: 0 0 10px rgba(0,255,102,0.4);">
+                100</div>
+        </div>
+
+        <div style="display: flex; gap: 5px;">
+            <button class="btn-action" onclick="resetScore()" style="flex: 1; padding: 6px; font-size: 9px;">RESET TO
+                100</button>
+            <button class="btn-action" onclick="undoScore()"
+                style="flex: 1; padding: 6px; font-size: 9px; border-color: #fca311; color: #fca311;">UNDO LAST</button>
+        </div>
+
+        <div
+            style="background: rgba(0,0,0,0.3); border: 1px solid rgba(120,160,200,0.2); border-radius: 8px; padding: 8px; margin-top: 5px;">
+            <label style="margin-top: 0;">MISTAKE REASON</label>
+            <input type="text" id="mistake-reason" placeholder="e.g. Late handoff" style="margin-bottom: 8px;">
+
+            <label style="margin-top: 0;">POINTS (-)</label>
+            <div style="display: flex; gap: 5px;">
+                <input type="number" id="mistake-points" placeholder="0" min="1" max="100" style="flex: 1; margin: 0;">
+                <button class="btn-red" onclick="subtractScore()" style="padding: 0 15px;">DEDUCT</button>
+            </div>
+        </div>
+
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: bold; color: #8899aa; margin-top: 5px; border-bottom: 1px solid rgba(136,153,170,0.2); padding-bottom: 2px;">
+            <span>DEDUCTION LOG</span>
+            <button class="btn-action" onclick="copyDeductionLog()"
+                style="padding: 2px 6px; font-size: 8px; margin: 0; width: auto; flex: none;">COPY</button>
+        </div>
+        <div id="score-log"
+            style="flex: 1; min-height: 80px; max-height: 120px; overflow-y: auto; font-size: 10px; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; user-select: text; -webkit-user-select: text;">
+            <div style="color: #556677; text-align: center; font-style: italic; margin-top: 10px;">No deductions yet.
+            </div>
+        </div>
+    </div>
+
+    <!-- System Settings Modal -->
+    <div id="gen-settings-modal" class="widget hidden"
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 750px; z-index: 1001; display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.95); border: 2px solid rgba(100, 150, 200, 0.5); padding: 20px;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(120, 160, 200, 0.3); padding-bottom: 10px;">
+            <h2 style="margin: 0; font-size: 16px; color: #fff;">SYSTEM SETTINGS</h2>
+            <button class="btn-red" onclick="toggleGenSettingsModal()"
+                style="padding: 4px 10px; font-size: 12px; margin: 0; flex: none;">✕</button>
+        </div>
+
+        <div style="overflow-y: auto; max-height: 700px; padding-right: 5px;">
+            <h3
+                style="color: #fff; border-bottom: 1px solid rgba(255,255,255,0.2); margin-top: 5px; padding-bottom: 5px;">
+                TRAFFIC GENERATOR</h3>
+            <label>AIRCRAFT VFR TYPES (Comma-separated)</label>
+            <textarea id="gen-ac-types-vfr"
+                style="width: 100%; height: 60px; box-sizing: border-box; background: rgba(10, 15, 20, 0.6); border: 1px solid rgba(120, 160, 200, 0.3); color: #5cadff; padding: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; border-radius: 8px; margin-bottom: 10px; resize: vertical;"></textarea>
+
+            <label>AIRCRAFT IFR TYPES (Comma-separated)</label>
+            <textarea id="gen-ac-types-ifr"
+                style="width: 100%; height: 60px; box-sizing: border-box; background: rgba(10, 15, 20, 0.6); border: 1px solid rgba(120, 160, 200, 0.3); color: #5cadff; padding: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; border-radius: 8px; margin-bottom: 10px; resize: vertical;"></textarea>
+
+            <label>HELICOPTER TYPES (Comma-separated)</label>
+            <textarea id="gen-heli-types"
+                style="width: 100%; height: 40px; background: rgba(10, 15, 20, 0.6); border: 1px solid rgba(120, 160, 200, 0.3); color: #5cadff; padding: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; border-radius: 8px; margin-bottom: 10px; resize: vertical;"></textarea>
+
+            <label>AIRPORTS (Comma-separated)</label>
+            <textarea id="gen-airports"
+                style="width: 100%; height: 60px; background: rgba(10, 15, 20, 0.6); border: 1px solid rgba(120, 160, 200, 0.3); color: #5cadff; padding: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; border-radius: 8px; margin-bottom: 10px; resize: vertical;"></textarea>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <label>AIRCRAFT VFR CALLSIGNS</label>
+                    <input type="text" id="gen-ac-format">
+                </div>
+                <div style="flex: 1;">
+                    <label>AIRCRAFT IFR CALLSIGNS</label>
+                    <input type="text" id="gen-ac-format-ifr">
+                </div>
+                <div style="flex: 1;">
+                    <label>HELICOPTER CALLSIGNS</label>
+                    <input type="text" id="gen-heli-format">
+                </div>
+            </div>
+            <div style="font-size: 9px; color: #8899aa; margin-bottom: 15px;">Use 'X' for random letters, '#' for random
+                numbers. (e.g., N#XX)</div>
+
+            <h3
+                style="color: #fff; border-bottom: 1px solid rgba(255,255,255,0.2); margin-top: 15px; padding-bottom: 5px;">
+                MAP & RADAR CALIBRATION</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div style="flex: 1;"><label>MAP X OFFSET</label><input type="number" id="gen-map-x"></div>
+                <div style="flex: 1;"><label>MAP Z OFFSET</label><input type="number" id="gen-map-z"></div>
+                <div style="flex: 1;"><label>MAP SCALE</label><input type="number" id="gen-map-scale" step="0.1"></div>
+                <div style="flex: 1;"><label>MAP OPACITY</label><input type="number" id="gen-map-opacity" step="0.1"
+                        max="1.0" min="0.0"></div>
+                <div style="flex: 1;"><label>MAP ROTATION</label><input type="number" id="gen-map-rot"></div>
+            </div>
+
+            <div style="margin-top: 5px; margin-bottom: 15px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px dashed rgba(255,170,0,0.3);">
+                <label style="display: block; margin-bottom: 8px; color: #ffaa00; font-size: 10px; font-weight: bold; letter-spacing: 1px;">REPLACE MAP IMAGE (PNG ONLY)</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="file" id="map-upload-input" accept="image/png" style="font-size: 10px; color: #aaa; flex: 1;">
+                    <button class="btn-action" onclick="uploadMapFile()" style="margin: 0; padding: 6px 12px; background: #ffaa00; color: #000; font-weight: bold; font-size: 10px;">UPLOAD MAP</button>
+                </div>
+            </div>
+
+            <h3
+                style="color: #fff; border-bottom: 1px solid rgba(255,255,255,0.2); margin-top: 15px; padding-bottom: 5px;">
+                AWOS & AIRPORT PREFS</h3>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="flex: 1.5;"><label>AIRPORT ICAO</label><input type="text" id="gen-airport-id"
+                        placeholder="LTAC"></div>
+                <div style="flex: 1.5;"><label>DEFAULT QFE (hPa)</label><input type="number" id="gen-qfe"></div>
+                <div style="flex: 1;"><label>RWY TOP</label><input type="text" id="gen-rwy-top" placeholder="03"></div>
+                <div style="flex: 1;"><label>RWY BOT</label><input type="text" id="gen-rwy-bot" placeholder="21"></div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-green" onclick="saveGenSettings()">SAVE & APPLY</button>
+            </div>
+
+            <div
+                style="margin-top: 15px; border-top: 1px solid rgba(120, 160, 200, 0.3); padding-top: 15px; display: flex; gap: 10px;">
+                <button class="btn-action" onclick="exportGenSettings()" style="flex: 1;">EXPORT SETTINGS</button>
+                <button class="btn-action" onclick="document.getElementById('import-gen-file').click()"
+                    style="flex: 1;">IMPORT SETTINGS</button>
+                <input type="file" id="import-gen-file" style="display: none;" accept=".json"
+                    onchange="importGenSettings(event)">
+            </div>
+        </div>
+    </div>
+
+    <!-- AWOS Embedded Modal -->
+    <div id="awos-modal" class="widget hidden"
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); width: 1600px; height: 1000px; z-index: 1000; display: flex; flex-direction: column; background: rgba(2, 6, 23, 0.98); border: 2px solid rgba(100, 150, 200, 0.5); box-shadow: 0 40px 120px rgba(0,0,0,0.9); padding: 0; backface-visibility: hidden; -webkit-font-smoothing: antialiased; transform-origin: center center;">
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(120, 160, 200, 0.3); padding: 10px 30px; background: rgba(15, 23, 42, 0.95);">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <h1
+                    style="margin: 0; font-size: 20px; color: #fff; letter-spacing: 4px; font-weight: 900; border-right: 1px solid rgba(255,255,255,0.2); padding-right: 20px;">
+                    WEATHER CONTROL</h1>
+                <span id="awos-online-sig"
+                    style="color: #00ff66; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: bold; text-shadow: 0 0 10px #00ff66;">LINK
+                    ACTIVE - ENCRYPTED</span>
+            </div>
+            <button class="btn-red" onclick="toggleAwosModal()"
+                style="font-size: 16px; padding: 8px 30px; font-weight: 900; box-shadow: 0 4px 15px rgba(255,0,0,0.2);">✕
+                DISMISS UNIT</button>
+        </div>
+        <iframe src="/awos_main"
+            style="width: 100%; height: 100%; border: none; flex: 1; background: #020617;"></iframe>
+    </div>
+
+    <div id="strip-bay" class="widget">
+        <h2>STRIP BAY</h2>
+        <div id="strip-container">
+            <div class="strip-cat-header" id="header-undefined">UNDEFINED</div>
+            <div id="cat-container-undefined"></div>
+            <div class="strip-cat-header" id="header-arrival">ARRIVAL</div>
+            <div id="cat-container-arrival" class="drop-zone" ondragover="event.preventDefault()"
+                ondrop="handleDrop(event, 'arrival')"></div>
+            <div class="strip-cat-header" id="header-departure">DEPARTURE</div>
+            <div id="cat-container-departure" class="drop-zone" ondragover="event.preventDefault()"
+                ondrop="handleDrop(event, 'departure')"></div>
+            <div class="strip-cat-header" id="header-local">LOCAL</div>
+            <div id="cat-container-local" class="drop-zone" ondragover="event.preventDefault()"
+                ondrop="handleDrop(event, 'local')"></div>
+        </div>
+        <div id="ground-bay" style="flex: none; display: flex; flex-direction: column;">
+        <div class="strip-cat-header" id="header-ground">GROUND</div>
+            <div id="cat-container-ground"></div>
+        </div>
+        <div class="btn-row" style="margin-top: auto; flex: none;">
+            <button id="btn-debug" class="btn-action" onclick="toggleDebugMode()">DEBUG GLOW</button>
+            <button id="btn-creator" class="btn-action" onclick="toggleCreatorMode()">CREATOR MODE</button>
+            <button id="btn-calibrate" class="btn-action" onclick="startCalibration()">CALIBRATE</button>
+        </div>
+    </div>
+
+    <!-- ALT-CLICK SPAWN MENU -->
+    <div id="alt-spawn-menu" class="widget hidden" style="position: absolute; z-index: 100; width: 180px;">
+        <h2 style="font-size: 12px; margin-bottom: 5px;">SPAWN HERE</h2>
+
+        <div style="font-size: 9px; color: #aaa; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            LARGE PLANE</div>
+        <div class="btn-row">
+            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:large_plane', 'VFR')"
+                style="font-size: 9px;">VFR</button>
+            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:large_plane', 'IFR')"
+                style="font-size: 9px;">IFR</button>
+        </div>
+
+        <div
+            style="font-size: 9px; color: #aaa; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-top: 5px;">
+            PLANE</div>
+        <div class="btn-row">
+            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:plane', 'VFR')"
+                style="font-size: 9px;">VFR</button>
+            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:plane', 'IFR')"
+                style="font-size: 9px;">IFR</button>
+        </div>
+
+        <div
+            style="font-size: 9px; color: #aaa; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-top: 5px;">
+            HELICOPTER</div>
+        <button class="btn-action" onclick="executeAltSpawn('simpleplanes:helicopter', 'VFR')"
+            style="margin-bottom: 6px; margin-top: 4px; width: 100%;">SPAWN HELICOPTER</button>
+
+        <div style="font-size: 9px; color: #aaa; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            GROUND</div>
+        <div class="btn-row">
+            <button class="btn-green" onclick="executeAltSpawn('FOLLOWME')" style="font-size: 9px;">FOLLOWME</button>
+            <button class="btn-yellow" onclick="executeAltSpawn('TRUCK')" style="font-size: 9px;">TRUCK</button>
+        </div>
+
+        <div
+            style="font-size: 9px; color: #aaa; margin-bottom: 3px; margin-top: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            EVENTS</div>
+        <button class="btn-action" onclick="executeCrash()"
+            style="width:100%; border-color: #ffaa00; color: #ffaa00; background: linear-gradient(135deg, rgba(80, 50, 0, 0.4), rgba(50, 30, 0, 0.6));">TRIGGER
+            CRASH</button>
+        <button id="btn-kill-all-alt" class="btn-red" onclick="killAllPlanes(this)"
+            style="margin-top:15px; width:100%; background-color:#331111;">KILL ALL AIRCRAFT</button>
+    </div>
+
+    <!-- CREATOR SPAWN MENU -->
+    <div id="creator-spawn-menu" class="widget hidden"
+        style="position: absolute; z-index: 100; width: 220px; text-align: center;">
+        <h2 style="font-size: 12px; margin-bottom: 10px; color: #fff;">CREATE WAYPOINT</h2>
+
+        <div style="font-size: 10px; margin-bottom: 5px; color: #aaa; display: flex; justify-content: space-between;">
+            <span>🌱 GRASS (-59)</span>
+            <span>☁️ SKY (-29)</span>
+        </div>
+
+        <input type="range" id="wp-y-slider" min="-59" max="-29" value="-59" step="1"
+            oninput="document.getElementById('wp-y-display').innerText = this.value" style="width: 100%; margin-bottom: 15px; appearance: none; height: 12px; border-radius: 6px; 
+                      background: linear-gradient(to right, #4CAF50 0%, #8D6E63 20%, #87CEEB 80%, #00BFFF 100%); 
+                      outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);">
+
+        <div style="font-size: 11px; color: #fff; margin-bottom: 10px;">
+            Y LEVEL: <span id="wp-y-display" style="font-weight: bold; color: #00ddff;">-59</span>
+        </div>
+
+        <div class="btn-row">
+            <button class="btn-red" onclick="cancelCreatorSpawn()" style="font-size: 9px; flex: 1;">CANCEL</button>
+            <button class="btn-green" onclick="confirmCreatorSpawn()" style="font-size: 9px; flex: 1;">SPAWN</button>
+        </div>
+    </div>
+
+    <!-- CALIBRATION MODAL -->
+    <div id="modal-calibrate" class="widget hidden"
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; z-index: 1001; background: rgba(15, 23, 42, 0.95); border: 2px solid rgba(255, 170, 0, 0.5);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(255,170,0,0.3); padding-bottom: 10px;">
+            <h2 id="calib-title" style="margin: 0; font-size: 16px; color: #ffaa00;">MAP CALIBRATION</h2>
+            <button class="btn-red" onclick="closeCalibration()" style="padding: 4px 10px; font-size: 12px; margin: 0; flex: none;">✕</button>
+        </div>
+        
+        <div id="calib-step-1">
+            <p id="calib-instruction" style="font-size: 13px; margin-bottom: 15px; color: #ccc; line-height: 1.4;">Step 1: Click a known landmark on the radar map.</p>
+        </div>
+        
+        <div id="calib-coords" class="hidden">
+            <p id="calib-coord-text" style="font-size: 13px; margin-bottom: 15px; color: #ffaa00; font-weight: bold;">Enter World Coordinates for Point 1</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <div style="flex: 1;"><label style="font-size: 10px; color: #aaa; display: block; margin-bottom: 4px;">WORLD X</label><input type="number" id="calib-world-x" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px; border-radius: 4px;" placeholder="e.g. 1500"></div>
+                <div style="flex: 1;"><label style="font-size: 10px; color: #aaa; display: block; margin-bottom: 4px;">WORLD Z</label><input type="number" id="calib-world-z" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px; border-radius: 4px;" placeholder="e.g. -200"></div>
+            </div>
+            <button class="btn-action" onclick="submitCalibPoint()" style="width: 100%; background: #ffaa00; color: #000; font-weight: bold;">SUBMIT POINT</button>
+        </div>
+    </div>
+
+
+    <div id="time-tracker-panel" class="widget hidden"
+        style="display: none; padding: 15px; width: 240px; box-sizing: border-box; flex-direction: column; gap: 12px; position: absolute; left: 540px; bottom: 40px; z-index: 10; pointer-events: auto;">
+
+        <div
+            style="display: flex; align-items: center; justify-content: center; gap: 10px; border-bottom: 1px solid rgba(92, 173, 255, 0.2); padding-bottom: 8px;">
+            <span style="font-size: 14px; opacity: 0.8;">⏱️</span>
+            <h2
+                style="margin: 0; font-size: 12px; color: #5cadff; text-align: center; letter-spacing: 3px; font-weight: 700; text-shadow: 0 0 8px rgba(92,173,255,0.4);">
+                TIME LOG</h2>
+            <span style="font-size: 14px; opacity: 0.8;">⏱️</span>
+        </div>
+
+        <div id="tt-departure"
+            style="display: none; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; border: 1px solid rgba(0, 210, 255, 0.15); position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
+            <div
+                style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #00d2ff; box-shadow: 0 0 8px #00d2ff;">
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 9px; color: #88aadd; font-weight: bold; letter-spacing: 1px;">TAKEOFF</span>
+                    <span id="tt-val-takeoff"
+                        style="font-size: 18px; color: #fff; font-family: 'JetBrains Mono', monospace; font-weight: bold; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,255,255,0.3);">--:--</span>
+                </div>
+                <button class="btn-blue"
+                    style="padding: 8px 12px; font-size: 10px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,210,255,0.2); margin: 0; flex: unset; width: auto;"
+                    onclick="markTime('takeoff')">MARK TO</button>
+            </div>
+        </div>
+
+        <div id="tt-arrival" style="display: none; flex-direction: column; gap: 10px;">
+            <div
+                style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; border: 1px solid rgba(255, 204, 0, 0.15); position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
+                <div
+                    style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #ffcc00; box-shadow: 0 0 8px #ffcc00;">
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <span
+                            style="font-size: 9px; color: #ddaa55; font-weight: bold; letter-spacing: 1px;">LANDING</span>
+                        <span id="tt-val-landing"
+                            style="font-size: 18px; color: #fff; font-family: 'JetBrains Mono', monospace; font-weight: bold; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,255,255,0.3);">--:--</span>
+                    </div>
+                    <button class="btn-yellow"
+                        style="padding: 8px 12px; font-size: 10px; border-radius: 6px; box-shadow: 0 4px 10px rgba(255,204,0,0.2); margin: 0; flex: unset; width: auto;"
+                        onclick="markTime('landing')">MARK LDG</button>
+                </div>
+            </div>
+            <div
+                style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; border: 1px solid rgba(255, 80, 80, 0.15); position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
+                <div
+                    style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #ff5555; box-shadow: 0 0 8px #ff5555;">
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        <span style="font-size: 9px; color: #dd8888; font-weight: bold; letter-spacing: 1px;">GO
+                            AROUND</span>
+                        <span id="tt-val-go_around"
+                            style="font-size: 18px; color: #fff; font-family: 'JetBrains Mono', monospace; font-weight: bold; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,255,255,0.3);">--:--</span>
+                    </div>
+                    <button class="btn-red"
+                        style="padding: 8px 12px; font-size: 10px; border-radius: 6px; box-shadow: 0 4px 10px rgba(255,80,80,0.2); margin: 0; flex: unset; width: auto;"
+                        onclick="markTime('go_around')">MARK GA</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="sidebar-left-container">
+        <div id="control-panel" class="widget hidden">
+            <h2 id="panel-title">--</h2>
+
+            <div id="panel-flight-strip" class="flight-strip">
+                <div class="fs-row"><span>TYPE</span><span id="fs-type" class="fs-val">--</span></div>
+                <div class="fs-row"><span>SQUAWK</span><span id="fs-squawk" class="fs-val">--</span></div>
+                <div class="fs-row"><span>SID</span><span id="fs-sid" class="fs-val">--</span></div>
+                <div class="fs-row"><span>AIRWAYS</span><span id="fs-airways" class="fs-val">--</span></div>
+                <div class="fs-row"><span>PLANNED FL</span><span id="fs-pfl" class="fs-val">--</span></div>
+                <div class="fs-row" style="margin-top:4px"><span id="fs-route" class="fs-val" style="color:#8899aa">-- >
+                        --</span></div>
+            </div>
+
+            <div id="panel-auto-select" style="display:none; margin-bottom: 10px;">
+                <div style="font-size: 11px; color: #FFCC00; margin-bottom: 8px;">SELECT VEHICLE TYPE</div>
+                <div class="btn-row">
+                    <button class="btn-green" onclick="setAutomobileType('FOLLOWME')">FOLLOW ME</button>
+                    <button class="btn-yellow" onclick="setAutomobileType('TRUCK')">TRUCK</button>
+                </div>
+            </div>
+
+            <div id="panel-info-edit" style="display:flex; flex-wrap: nowrap; gap:5px; margin-bottom:5px;">
+                <div style="flex: 1;">
+                    <label style="margin-top:0">TYPE</label>
+                    <input type="text" id="editType" placeholder="B738" style="text-align:center;"
+                        onchange="saveUserData('type')">
+                </div>
+                <div style="flex: 1;">
+                    <label style="margin-top:0">SQUAWK</label>
+                    <input type="text" id="editSquawk" placeholder="1200" style="text-align:center; color:#fff;"
+                        onchange="saveUserData('squawk')">
+                </div>
+                <div style="flex: 1;">
+                    <label style="margin-top:0">GATE</label>
+                    <input type="text" id="standNum" placeholder="A1" style="text-align:center; color:#FFCC00;"
+                        onchange="saveUserData('gate')">
+                </div>
+                <div style="flex: 1;">
+                    <label style="margin-top:0">ROUTE</label>
+                    <input type="text" id="editRoute" placeholder="LTFM" style="text-align:center; color:#5cadff;"
+                        onchange="saveUserData('route')">
+                </div>
+                <div style="flex: 2;">
+                    <label style="margin-top:0">CALLSIGN OVERRIDE</label>
+                    <input type="text" id="visualName" placeholder="TC-XXX" onchange="saveUserData('callsign')">
+                </div>
+            </div>
+
+            <div id="panel-info-edit-2" style="display:flex; flex-wrap: nowrap; gap:5px; margin-bottom:5px;">
+                <div style="flex: 1;">
+                    <label style="margin-top:0">SID</label>
+                    <input type="text" id="editSid" placeholder="GAYBO1A" style="text-align:center; color:#ffaa00;"
+                        onchange="saveUserData('sid')">
+                </div>
+                <div style="flex: 1;">
+                    <label style="margin-top:0">AIRWAYS</label>
+                    <input type="text" id="editAirways" placeholder="UM860" style="text-align:center; color:#33cc66;"
+                        onchange="saveUserData('airways')">
+                </div>
+                <div style="flex: 1;">
+                    <label style="margin-top:0">PLANNED FL</label>
+                    <input type="text" id="editPfl" placeholder="FL330" style="text-align:center; color:#cc99ff;"
+                        onchange="saveUserData('pfl')">
+                </div>
+            </div>
+
+            <div id="panel-category-tools"
+                style="margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-end;">
+                <div style="flex: 2;">
+                    <label style="margin-top:0">CATEGORY</label>
+                    <div class="btn-row" style="margin-top:2px;">
+                        <button id="btn-cat-arrival" class="btn-action" style="font-size: 9px; padding: 6px 2px;"
+                            onclick="setCategory('arrival')">ARR</button>
+                        <button id="btn-cat-departure" class="btn-action" style="font-size: 9px; padding: 6px 2px;"
+                            onclick="setCategory('departure')">DEP</button>
+                        <button id="btn-cat-local" class="btn-action" style="font-size: 9px; padding: 6px 2px;"
+                            onclick="setCategory('local')">LOC</button>
+                        <button id="btn-cat-ground" class="btn-action" style="font-size: 9px; padding: 6px 2px;"
+                            onclick="setCategory('ground')">GND</button>
+                    </div>
+                </div>
+                <div class="btn-row" id="row-startup" style="display:none; flex: 1; padding-bottom: 1px;">
+                    <button id="btn-startup" class="btn-action" style="margin-top: 0;" onclick="toggleStartup()">MARK AS
+                        STARTED UP</button>
+                </div>
+            </div>
+
+            <div id="panel-speed-tools" style="margin-bottom: 10px;">
+                <label style="margin-top:0; display: flex; justify-content: space-between; align-items: center;">
+                    <span>SPEED CONTROL</span>
+                    <span id="speed-display-label" style="font-weight: bold; color: #5cadff;">NORMAL (1.0x)</span>
+                </label>
+                <div style="margin-top:6px; padding: 0 5px;">
+                    <input type="range" id="speedSlider" min="1" max="4" step="1" value="2" 
+                        style="width: 100%; cursor: pointer; accent-color: #5cadff;" 
+                        oninput="updateSpeedLabel(this.value)" 
+                        onchange="setPlaneSpeed(parseInt(this.value))">
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 9px; color: #888; margin-top: 4px; padding: 0 5px;">
+                    <span>SLOW</span>
+                    <span>NORM</span>
+                    <span>FAST</span>
+                    <span>TURBO</span>
+                </div>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn-green" onclick="setStatus('taxi')">TAXI</button>
+                <button id="btn-fly" class="btn-blue" onclick="setStatus('fly')">FLY</button>
+            <button id="btn-park" class="btn-tp" style="display:none;" onclick="parkVehicle()">PARK</button>
+                <button class="btn-yellow" onclick="setStatus('stop')">HOLD</button>
+                <button id="btn-untrack-single" class="btn-action"
+                    style="background: linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(50, 50, 50, 0.6)); border-color: #888; color: #aaa;"
+                    onclick="untrackSelectedPlane(this)">UNTRACK</button>
+                <button id="btn-kill-single" class="btn-red" onclick="killSelectedPlane(this)">KILL</button>
+            </div>
+            <div id="panel-route-tools">
+                <div style="margin-top: 15px; font-size: 10px; color: #888;">FLIGHT PATH / TELEPORT</div>
+                <div class="btn-row">
+                    <button class="btn-clear-route" style="flex: 1;" onclick="clearRoute()">CLEAR ROUTE</button>
+                    <button class="btn-tp" style="flex: 2;" onclick="teleportToLast()"
+                        title="TP to last selected point">TP AIRCRAFT TO LAST WAYPOINT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="notif">DATA SENT</div>
+
+    <script>
+        const canvas = document.getElementById('radar');
+        const ctx = canvas.getContext('2d');
+
+        let chartConfig = { x: -265, z: 72, scale: 1, opacity: 0.5, rotation: 180 };
+        let baseMapOpacity = 0.5;
+        let targetChartOpacity = 0.5;
+        let cameraX = -307; let cameraZ = 90; let zoomLevel = 0.5;
+        let targetCameraX = cameraX; let targetCameraZ = cameraZ;
+        let planes = []; let ghostPlanes = []; let staticWaypoints = []; let buildRoute = []; let selectedPlane = null;
+        let routeAnimProgress = 0; // Tracks the animated length of the route line
+        let isClearingRoute = false; // Trigger for backward animation
+        let isPaused = false;
+        let currentWeather = "clear";
+        let chartImg = new Image(); let chartLoaded = false;
+
+        let isDraggingMap = false;
+        let dragStart = { x: 0, y: 0 };
+        let cameraStart = { x: 0, z: 0 };
+
+        function adjustZoom(factor) {
+            zoomLevel *= factor;
+            zoomLevel = Math.max(0.1, Math.min(zoomLevel, 5.0));
+        }
+        let hasMoved = false;
+        let hoveredWaypointId = null;
+        let hoveredPlaneId = null;
+
+        // LABEL DRAG STATE
+        let draggingLabelPlaneId = null;
+        let labelDragOffset = { x: 0, y: 0 };
+
+        // INTERACTION ANIMATIONS
+        let visualEffects = [];
+        let rainParticles = []; // For weather
+        let rainSplashes = []; // For widget collisions
+
+        // CONFIRMATION STATES
+        let killSingleClicks = 0;
+        let killSingleTimeout = null;
+        let killAllClicks = 0;
+        let killAllTimeout = null;
+
+
+        // ALT-CLICK SPAWN STATE
+        let pendingSpawnCoords = null;
+        let debugMode = false;
+        let creatorMode = false;
+
+        async function markTime(type) {
+            if (!selectedPlane) return;
+            const now = new Date();
+            const h = String(now.getUTCHours()).padStart(2, '0');
+            const m = String(now.getUTCMinutes()).padStart(2, '0');
+            const timeStr = `${h}:${m}Z`;
+            try {
+                await fetch('/update_times', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plane_id: selectedPlane, [type]: timeStr })
+                });
+                const notif = document.getElementById('notif');
+                notif.innerText = "TIME MARKED";
+                notif.style.opacity = 1;
+                setTimeout(() => notif.style.opacity = 0, 2000);
+            } catch (e) { }
+        }
+
+        let aircraftSpawnMode = false;
+        function toggleAircraftSpawnMode() {
+            aircraftSpawnMode = !aircraftSpawnMode;
+            const btn = document.getElementById('btn-spawn-mode');
+            if (aircraftSpawnMode) {
+                btn.innerText = "SPAWN AIRCRAFT: ON";
+                btn.style.backgroundColor = '#ffaa00';
+                btn.style.color = '#000';
+                btn.style.boxShadow = '0 0 10px rgba(255, 170, 0, 0.4)';
+                if (creatorMode) toggleCreatorMode(); // Disable creator mode if it was on
+            } else {
+                btn.innerText = "SPAWN AIRCRAFT: OFF";
+                btn.style.backgroundColor = '';
+                btn.style.color = '';
+                btn.style.boxShadow = '';
+            }
+        }
+
+        function toggleCreatorMode() {
+            creatorMode = !creatorMode;
+            const btn = document.getElementById('btn-creator');
+            if (btn) {
+                btn.style.backgroundColor = creatorMode ? '#ffaa00' : '';
+                btn.style.color = creatorMode ? '#000' : '';
+                btn.style.boxShadow = creatorMode ? '0 0 10px rgba(255, 170, 0, 0.4)' : '';
+            }
+            if (creatorMode && aircraftSpawnMode) toggleAircraftSpawnMode();
+        }
+
+        function toggleDebugMode() {
+            debugMode = !debugMode;
+            const btn = document.getElementById('btn-debug');
+            if (btn) {
+                btn.style.backgroundColor = debugMode ? '#5cadff' : '';
+                btn.style.color = debugMode ? '#000' : '';
+                btn.style.boxShadow = debugMode ? '0 0 10px rgba(92, 173, 255, 0.4)' : '';
+            }
+        }
+
+        function toggleScorePanel() {
+            const panel = document.getElementById('score-panel');
+            if (panel) {
+                panel.classList.toggle('score-hidden');
+            }
+        }
+        let calibrationState = 'off'; // 'off', 'wait_p1', 'input_p1', 'wait_p2', 'input_p2'
+        let calibPoints = [];
+        let hoveredCalibBlock = null;
+
+        function startCalibration() {
+            if (!chartLoaded) { showNotif("LOAD A MAP FIRST!"); return; }
+            calibrationState = 'wait_p1';
+            document.getElementById('modal-calibrate').classList.remove('hidden');
+            document.getElementById('calib-step-1').classList.remove('hidden');
+            document.getElementById('calib-coords').classList.add('hidden');
+            document.getElementById('calib-title').innerText = "CALIBRATION: POINT 1";
+            document.getElementById('calib-coord-text').innerText = "Click Point 1 on the map image.";
+            showNotif("CALIBRATION STARTED: CLICK POINT 1");
+        }
+
+        function closeCalibration() {
+            calibrationState = 'off';
+            calibPoints = [];
+            hoveredCalibBlock = null;
+            document.getElementById('modal-calibrate').classList.add('hidden');
+        }
+
+        function drawBlockHighlight(wx, wz, color, isHovered) {
+            const snappedX = Math.round(wx);
+            const snappedZ = Math.round(wz);
+            
+            const topLeft = worldToScreen(snappedX - 0.5, snappedZ - 0.5);
+            const topRight = worldToScreen(snappedX + 0.5, snappedZ - 0.5);
+            const bottomRight = worldToScreen(snappedX + 0.5, snappedZ + 0.5);
+            const bottomLeft = worldToScreen(snappedX - 0.5, snappedZ + 0.5);
+            
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(topLeft.x, topLeft.y);
+            ctx.lineTo(topRight.x, topRight.y);
+            ctx.lineTo(bottomRight.x, bottomRight.y);
+            ctx.lineTo(bottomLeft.x, bottomLeft.y);
+            ctx.closePath();
+            
+            // Set styles
+            ctx.strokeStyle = color;
+            ctx.lineWidth = isHovered ? 2 : 3;
+            if (isHovered) {
+                ctx.fillStyle = "rgba(255, 170, 0, 0.15)";
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 8;
+            } else {
+                ctx.fillStyle = "rgba(255, 170, 0, 0.25)";
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 12;
+            }
+            ctx.fill();
+            ctx.stroke();
+            
+            // Draw crosshairs at center
+            const center = worldToScreen(snappedX, snappedZ);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1;
+            ctx.shadowBlur = 0; // turn off shadow for lines
+            ctx.beginPath();
+            ctx.moveTo(center.x - 12, center.y);
+            ctx.lineTo(center.x + 12, center.y);
+            ctx.moveTo(center.x, center.y - 12);
+            ctx.lineTo(center.x, center.y + 12);
+            ctx.stroke();
+            
+            // Draw center dot
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        function handleCalibrationClick(worldX, worldZ, pixelX, pixelZ) {
+            // We need the raw pixel coordinates on the image itself
+            // worldX/worldZ are current radar world coords, not useful if unaligned.
+            // But we can derive image pixel from where the user clicked on the screen
+            // relative to how the image is CURRENTLY rendered.
+            
+            // To make it simple, let's calculate the image pixel coordinate (0 to width/height)
+            // based on the click location and current map parameters.
+            
+            // Local pos relative to image center
+            const lx = worldX - chartConfig.x;
+            const lz = worldZ - chartConfig.z;
+            
+            // Rotate back
+            const rad = -(chartConfig.rotation || 0) * Math.PI / 180;
+            const rx = lx * Math.cos(rad) - lz * Math.sin(rad);
+            const rz = lx * Math.sin(rad) + lz * Math.cos(rad);
+            
+            // Scale back
+            const imgPX = (rx / chartConfig.scale) + (chartImg.width / 2);
+            const imgPZ = (rz / chartConfig.scale) + (chartImg.height / 2);
+
+            if (calibrationState === 'wait_p1') {
+                calibPoints[0] = { imgX: imgPX, imgZ: imgPZ };
+                calibrationState = 'input_p1';
+                document.getElementById('calib-step-1').classList.add('hidden');
+                document.getElementById('calib-coords').classList.remove('hidden');
+                document.getElementById('calib-coord-text').innerText = "Enter Minecraft Coords for Point 1";
+                document.getElementById('calib-world-x').value = "";
+                document.getElementById('calib-world-z').value = "";
+            } else if (calibrationState === 'wait_p2') {
+                calibPoints[1] = { imgX: imgPX, imgZ: imgPZ };
+                calibrationState = 'input_p2';
+                document.getElementById('calib-coord-text').innerText = "Enter Minecraft Coords for Point 2";
+                document.getElementById('calib-world-x').value = "";
+                document.getElementById('calib-world-z').value = "";
+            }
+        }
+
+        function submitCalibPoint() {
+            const wx = parseFloat(document.getElementById('calib-world-x').value);
+            const wz = parseFloat(document.getElementById('calib-world-z').value);
+            if (isNaN(wx) || isNaN(wz)) { alert("Enter valid numbers!"); return; }
+
+            if (calibrationState === 'input_p1') {
+                calibPoints[0].worldX = wx;
+                calibPoints[0].worldZ = wz;
+                calibrationState = 'wait_p2';
+                document.getElementById('calib-coords').classList.add('hidden');
+                document.getElementById('calib-step-1').classList.remove('hidden');
+                document.getElementById('calib-title').innerText = "CALIBRATION: POINT 2";
+                showNotif("POINT 1 SAVED. CLICK POINT 2 ON MAP.");
+            } else if (calibrationState === 'input_p2') {
+                calibPoints[1].worldX = wx;
+                calibPoints[1].worldZ = wz;
+                finishCalibration();
+            }
+        }
+
+        function finishCalibration() {
+            const p1 = calibPoints[0];
+            const p2 = calibPoints[1];
+
+            // 1. Calculate Scale (Blocks per Pixel)
+            const dPixel = Math.sqrt(Math.pow(p2.imgX - p1.imgX, 2) + Math.pow(p2.imgZ - p1.imgZ, 2));
+            const dWorld = Math.sqrt(Math.pow(p2.worldX - p1.worldX, 2) + Math.pow(p2.worldZ - p1.worldZ, 2));
+            
+            if (dPixel < 5) { alert("Points are too close! Use distant landmarks."); return; }
+            
+            const newScale = dWorld / dPixel;
+
+            // 2. Calculate Rotation (assuming map image is North-Up by default, 
+            // but we can support rotation if the world vector and image vector differ)
+            const angleWorld = Math.atan2(p2.worldZ - p1.worldZ, p2.worldX - p1.worldX);
+            const anglePixel = Math.atan2(p2.imgZ - p1.imgZ, p2.imgX - p1.imgX);
+            const newRotation = (angleWorld - anglePixel) * 180 / Math.PI;
+
+            // 3. Calculate Center Coordinate
+            // The world coord of an image pixel (px, py) is:
+            // W = Center + RotMatrix * (Pixel - ImgCenter) * Scale
+            // So: Center = W - RotMatrix * (Pixel - ImgCenter) * Scale
+            
+            const centerPX = chartImg.width / 2;
+            const centerPZ = chartImg.height / 2;
+            
+            const dx = p1.imgX - centerPX;
+            const dz = p1.imgZ - centerPZ;
+            
+            const rad = newRotation * Math.PI / 180;
+            const offsetX = (dx * Math.cos(rad) - dz * Math.sin(rad)) * newScale;
+            const offsetZ = (dx * Math.sin(rad) + dz * Math.cos(rad)) * newScale;
+            
+            const newCenterX = p1.worldX - offsetX;
+            const newCenterZ = p1.worldZ - offsetZ;
+
+            // Apply
+            chartConfig.scale = newScale;
+            chartConfig.rotation = newRotation;
+            chartConfig.x = newCenterX;
+            chartConfig.z = newCenterZ;
+
+            // Sync to UI
+            document.getElementById('gen-map-x').value = Math.round(newCenterX);
+            document.getElementById('gen-map-z').value = Math.round(newCenterZ);
+            document.getElementById('gen-map-scale').value = newScale.toFixed(4);
+            document.getElementById('gen-map-rot').value = Math.round(newRotation);
+
+            // Save to server immediately to apply to everyone
+            fetch('/update_generator_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    map_x: Math.round(newCenterX),
+                    map_z: Math.round(newCenterZ),
+                    map_scale: parseFloat(newScale.toFixed(4)),
+                    map_rotation: Math.round(newRotation)
+                })
+            }).then(() => {
+                showNotif("CALIBRATION SAVED TO SERVER");
+            });
+
+            closeCalibration();
+            showNotif("CALIBRATION COMPLETE!");
+        }
+
+        // GENERATOR SETTINGS
+        let isGenSettingsModalOpen = false;
+
+        function toggleGenSettingsModal() {
+            const modal = document.getElementById('gen-settings-modal');
+            if (!isGenSettingsModalOpen) {
+                // Fetch current settings
+                fetch('/get_generator_settings')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.aircraft_types_vfr) {
+                            document.getElementById('gen-ac-types-vfr').value = data.aircraft_types_vfr.join(', ');
+                        } else if (data.aircraft_types) {
+                            document.getElementById('gen-ac-types-vfr').value = data.aircraft_types.join(', ');
+                        }
+                        if (data.aircraft_types_ifr) document.getElementById('gen-ac-types-ifr').value = data.aircraft_types_ifr.join(', ');
+
+                        document.getElementById('gen-heli-types').value = data.heli_types ? data.heli_types.join(', ') : '';
+                        document.getElementById('gen-airports').value = data.airports ? data.airports.join(', ') : '';
+                        document.getElementById('gen-ac-format').value = Array.isArray(data.callsign_format_aircraft_vfr) ? data.callsign_format_aircraft_vfr.join(', ') : data.callsign_format_aircraft_vfr;
+                        document.getElementById('gen-ac-format-ifr').value = Array.isArray(data.callsign_format_aircraft_ifr) ? data.callsign_format_aircraft_ifr.join(', ') : data.callsign_format_aircraft_ifr;
+                        document.getElementById('gen-heli-format').value = Array.isArray(data.callsign_format_heli) ? data.callsign_format_heli.join(', ') : data.callsign_format_heli;
+
+                        document.getElementById('gen-map-x').value = data.map_x !== undefined ? data.map_x : -265;
+                        document.getElementById('gen-map-z').value = data.map_z !== undefined ? data.map_z : 72;
+                        document.getElementById('gen-map-scale').value = data.map_scale !== undefined ? data.map_scale : 1.0;
+                        document.getElementById('gen-map-opacity').value = data.map_opacity !== undefined ? data.map_opacity : 0.5;
+                        document.getElementById('gen-map-rot').value = data.map_rotation !== undefined ? data.map_rotation : 180;
+
+                        document.getElementById('gen-airport-id').value = data.awos_airport_id || 'LTAC';
+                        document.getElementById('gen-qfe').value = data.awos_default_qfe || 898;
+                        document.getElementById('gen-rwy-top').value = data.awos_rwy_top || '03';
+                        document.getElementById('gen-rwy-bot').value = data.awos_rwy_bottom || '21';
+
+                        modal.classList.remove('hidden');
+                        isGenSettingsModalOpen = true;
+                    });
+            } else {
+                modal.classList.add('hidden');
+                isGenSettingsModalOpen = false;
+            }
+        }
+
+        async function uploadMapFile() {
+            const input = document.getElementById('map-upload-input');
+            if (!input.files || input.files.length === 0) {
+                showNotif("SELECT A FILE FIRST");
+                return;
+            }
+            
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            showNotif("UPLOADING MAP...");
+            
+            try {
+                const response = await fetch('/upload_map', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                if (data.status === 'ok') {
+                    showNotif("MAP UPLOADED! RELOADING...");
+                    // Reload the image by adding a cache-buster
+                    chartLoaded = false;
+                    chartImg.src = '/map.png?t=' + Date.now();
+                    chartImg.onload = () => { chartLoaded = true; };
+                } else {
+                    alert("Upload failed: " + (data.message || "Unknown error"));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Upload error occurred.");
+            }
+        }
+
+        function saveGenSettings() {
+            const acTypesVfr = document.getElementById('gen-ac-types-vfr').value.split(',').map(s => s.trim()).filter(s => s);
+            const acTypesIfr = document.getElementById('gen-ac-types-ifr').value.split(',').map(s => s.trim()).filter(s => s);
+            const heliTypes = document.getElementById('gen-heli-types').value.split(',').map(s => s.trim()).filter(s => s);
+            const airports = document.getElementById('gen-airports').value.split(',').map(s => s.trim()).filter(s => s);
+            const acFormatVfr = document.getElementById('gen-ac-format').value.split(',').map(s => s.trim()).filter(s => s);
+            const acFormatIfr = document.getElementById('gen-ac-format-ifr').value.split(',').map(s => s.trim()).filter(s => s);
+            const heliFormat = document.getElementById('gen-heli-format').value.split(',').map(s => s.trim()).filter(s => s);
+
+            const mx = parseFloat(document.getElementById('gen-map-x').value);
+            const mz = parseFloat(document.getElementById('gen-map-z').value);
+            const ms = parseFloat(document.getElementById('gen-map-scale').value);
+            const mo = parseFloat(document.getElementById('gen-map-opacity').value);
+            const mr = parseFloat(document.getElementById('gen-map-rot').value);
+
+            const settings = {
+                aircraft_types_vfr: acTypesVfr,
+                aircraft_types_ifr: acTypesIfr,
+                heli_types: heliTypes,
+                airports: airports,
+                callsign_format_aircraft_vfr: acFormatVfr,
+                callsign_format_aircraft_ifr: acFormatIfr,
+                callsign_format_heli: heliFormat,
+                map_x: isNaN(mx) ? -265 : mx,
+                map_z: isNaN(mz) ? 72 : mz,
+                map_scale: isNaN(ms) ? 1.0 : ms,
+                map_opacity: isNaN(mo) ? 0.5 : mo,
+                map_rotation: isNaN(mr) ? 180 : mr,
+                awos_airport_id: document.getElementById('gen-airport-id').value.trim(),
+                awos_default_qfe: parseInt(document.getElementById('gen-qfe').value) || 898,
+                awos_rwy_top: document.getElementById('gen-rwy-top').value.trim(),
+                awos_rwy_bottom: document.getElementById('gen-rwy-bot').value.trim()
+            };
+
+            fetch('/update_generator_settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            }).then(() => {
+                // Apply locally
+                chartConfig.x = settings.map_x;
+                chartConfig.z = settings.map_z;
+                chartConfig.scale = settings.map_scale;
+                baseMapOpacity = settings.map_opacity;
+                chartConfig.rotation = settings.map_rotation;
+
+                const awosFrame = document.querySelector('#awos-modal iframe');
+                if (awosFrame) awosFrame.src = awosFrame.src;
+
+                const notif = document.getElementById('notif');
+                notif.innerText = "SETTINGS SAVED";
+                notif.style.opacity = 1;
+                setTimeout(() => notif.style.opacity = 0, 2000);
+            });
+        }
+
+        function exportGenSettings() {
+            const acTypesVfr = document.getElementById('gen-ac-types-vfr').value.split(',').map(s => s.trim()).filter(s => s);
+            const acTypesIfr = document.getElementById('gen-ac-types-ifr').value.split(',').map(s => s.trim()).filter(s => s);
+            const heliTypes = document.getElementById('gen-heli-types').value.split(',').map(s => s.trim()).filter(s => s);
+            const airports = document.getElementById('gen-airports').value.split(',').map(s => s.trim()).filter(s => s);
+            const acFormatVfr = document.getElementById('gen-ac-format').value.split(',').map(s => s.trim()).filter(s => s);
+            const acFormatIfr = document.getElementById('gen-ac-format-ifr').value.split(',').map(s => s.trim()).filter(s => s);
+            const heliFormat = document.getElementById('gen-heli-format').value.split(',').map(s => s.trim()).filter(s => s);
+
+            const settings = {
+                aircraft_types_vfr: acTypesVfr,
+                aircraft_types_ifr: acTypesIfr,
+                heli_types: heliTypes,
+                airports: airports,
+                callsign_format_aircraft_vfr: acFormatVfr,
+                callsign_format_aircraft_ifr: acFormatIfr,
+                callsign_format_heli: heliFormat,
+                map_x: parseFloat(document.getElementById('gen-map-x').value) || -265,
+                map_z: parseFloat(document.getElementById('gen-map-z').value) || 72,
+                map_scale: parseFloat(document.getElementById('gen-map-scale').value) || 1.0,
+                map_opacity: parseFloat(document.getElementById('gen-map-opacity').value) || 0.5,
+                map_rotation: parseFloat(document.getElementById('gen-map-rot').value) || 180,
+                awos_airport_id: document.getElementById('gen-airport-id').value.trim(),
+                awos_default_qfe: parseInt(document.getElementById('gen-qfe').value) || 898,
+                awos_rwy_top: document.getElementById('gen-rwy-top').value.trim(),
+                awos_rwy_bottom: document.getElementById('gen-rwy-bot').value.trim()
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(settings, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "atc_generator_settings.json");
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importGenSettings(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const settings = JSON.parse(e.target.result);
+                    if (settings.aircraft_types_vfr) document.getElementById('gen-ac-types-vfr').value = settings.aircraft_types_vfr.join(', ');
+                    if (settings.aircraft_types_ifr) document.getElementById('gen-ac-types-ifr').value = settings.aircraft_types_ifr.join(', ');
+                    if (settings.aircraft_types && !settings.aircraft_types_vfr) {
+                        document.getElementById('gen-ac-types-vfr').value = settings.aircraft_types.join(', ');
+                    }
+                    if (settings.heli_types) document.getElementById('gen-heli-types').value = settings.heli_types.join(', ');
+                    if (settings.airports) document.getElementById('gen-airports').value = settings.airports.join(', ');
+
+                    // Handle old settings gracefully
+                    if (settings.callsign_format_aircraft) {
+                        document.getElementById('gen-ac-format').value = Array.isArray(settings.callsign_format_aircraft) ? settings.callsign_format_aircraft.join(', ') : settings.callsign_format_aircraft;
+                    }
+                    if (settings.callsign_format_aircraft_vfr) {
+                        document.getElementById('gen-ac-format').value = Array.isArray(settings.callsign_format_aircraft_vfr) ? settings.callsign_format_aircraft_vfr.join(', ') : settings.callsign_format_aircraft_vfr;
+                    }
+                    if (settings.callsign_format_aircraft_ifr) {
+                        document.getElementById('gen-ac-format-ifr').value = Array.isArray(settings.callsign_format_aircraft_ifr) ? settings.callsign_format_aircraft_ifr.join(', ') : settings.callsign_format_aircraft_ifr;
+                    }
+                    if (settings.callsign_format_heli) document.getElementById('gen-heli-format').value = Array.isArray(settings.callsign_format_heli) ? settings.callsign_format_heli.join(', ') : settings.callsign_format_heli;
+
+                    if (settings.map_x !== undefined) document.getElementById('gen-map-x').value = settings.map_x;
+                    if (settings.map_z !== undefined) document.getElementById('gen-map-z').value = settings.map_z;
+                    if (settings.map_scale !== undefined) document.getElementById('gen-map-scale').value = settings.map_scale;
+                    if (settings.map_opacity !== undefined) document.getElementById('gen-map-opacity').value = settings.map_opacity;
+                    if (settings.map_rotation !== undefined) document.getElementById('gen-map-rot').value = settings.map_rotation;
+
+                    if (settings.awos_airport_id) document.getElementById('gen-airport-id').value = settings.awos_airport_id;
+                    if (settings.awos_default_qfe) document.getElementById('gen-qfe').value = settings.awos_default_qfe;
+                    if (settings.awos_rwy_top) document.getElementById('gen-rwy-top').value = settings.awos_rwy_top;
+                    if (settings.awos_rwy_bottom) document.getElementById('gen-rwy-bot').value = settings.awos_rwy_bottom;
+
+                    const notif = document.getElementById('notif');
+                    notif.innerText = "SETTINGS IMPORTED";
+                    notif.style.opacity = 1;
+                    setTimeout(() => notif.style.opacity = 0, 2000);
+                } catch (err) {
+                    alert("Invalid JSON file.");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = ""; // Reset file input
+        }
+
+        document.getElementById('gen-rwy-top').addEventListener('input', function () {
+            const val = parseInt(this.value);
+            if (!isNaN(val) && val > 0 && val <= 36) {
+                let bot = (val + 18) % 36;
+                if (bot === 0) bot = 36;
+                document.getElementById('gen-rwy-bot').value = bot.toString().padStart(2, '0');
+            }
+        });
+
+        // STUDENT SCORING FEATURE
+        let currentStudentScore = 100;
+        let scoreHistory = [];
+
+        function updateScoreDisplay() {
+            const scoreDisplay = document.getElementById('current-score');
+            if (!scoreDisplay) return;
+            scoreDisplay.innerText = currentStudentScore;
+
+            if (currentStudentScore >= 80) {
+                scoreDisplay.style.color = '#00ff66';
+                scoreDisplay.style.textShadow = '0 0 10px rgba(0,255,102,0.4)';
+            } else if (currentStudentScore >= 50) {
+                scoreDisplay.style.color = '#fca311';
+                scoreDisplay.style.textShadow = '0 0 10px rgba(252,163,17,0.4)';
+            } else {
+                scoreDisplay.style.color = '#ff5555';
+                scoreDisplay.style.textShadow = '0 0 10px rgba(255,85,85,0.4)';
+            }
+
+            renderScoreLog();
+        }
+
+        function resetScore() {
+            fetch('/update_score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset' }) }).catch(e => { });
+        }
+
+        function subtractScore() {
+            const reasonInput = document.getElementById('mistake-reason');
+            const pointsInput = document.getElementById('mistake-points');
+
+            const reason = reasonInput.value.trim();
+            const points = parseInt(pointsInput.value);
+
+            if (!reason) {
+                alert("Please enter a reason for the deduction.");
+                return;
+            }
+            if (isNaN(points) || points <= 0) {
+                alert("Please enter a valid positive number for points.");
+                return;
+            }
+
+            fetch('/update_score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'subtract', reason: reason, points: points, previousScore: currentStudentScore }) }).catch(e => { });
+
+            reasonInput.value = '';
+            pointsInput.value = '';
+        }
+
+        function undoScore() {
+            if (scoreHistory.length === 0) return;
+            fetch('/update_score', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'undo' }) }).catch(e => { });
+        }
+
+        function copyDeductionLog() {
+            if (scoreHistory.length === 0) {
+                const notif = document.getElementById('notif');
+                notif.innerText = "NOTHING TO COPY";
+                notif.style.opacity = 1;
+                setTimeout(() => notif.style.opacity = 0, 2000);
+                return;
+            }
+            const textToCopy = scoreHistory.map(item => `${item.reason}: -${item.points}`).join('\n');
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const notif = document.getElementById('notif');
+                notif.innerText = "LOG COPIED";
+                notif.style.opacity = 1;
+                setTimeout(() => notif.style.opacity = 0, 2000);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
+        function renderScoreLog() {
+            const logContainer = document.getElementById('score-log');
+            if (!logContainer) return;
+            logContainer.innerHTML = '';
+
+            if (scoreHistory.length === 0) {
+                logContainer.innerHTML = '<div style="color: #556677; text-align: center; font-style: italic; margin-top: 10px;">No deductions yet.</div>';
+                return;
+            }
+
+            for (let i = scoreHistory.length - 1; i >= 0; i--) {
+                const item = scoreHistory[i];
+                const entry = document.createElement('div');
+                entry.style.display = 'flex';
+                entry.style.justifyContent = 'space-between';
+                entry.style.alignItems = 'flex-start';
+                entry.style.background = 'rgba(255, 85, 85, 0.1)';
+                entry.style.borderLeft = '2px solid #ff5555';
+                entry.style.padding = '4px 6px';
+                entry.style.borderRadius = '0 4px 4px 0';
+
+                entry.innerHTML = `
+                    <div style="flex: 1; word-break: break-word; padding-right: 5px; color: #ccc;">${item.reason}</div>
+                    <div style="color: #ff5555; font-weight: bold; font-family: 'JetBrains Mono', monospace;">-${item.points}</div>
+                `;
+                logContainer.appendChild(entry);
+            }
+        }
+
+        function init() {
+            resize(); window.addEventListener('resize', resize);
+            chartImg.src = '/map.png';
+            chartImg.onload = () => { chartLoaded = true; };
+
+            fetch('/get_generator_settings').then(r => r.json()).then(data => {
+                if (data.map_x !== undefined) chartConfig.x = data.map_x;
+                if (data.map_z !== undefined) chartConfig.z = data.map_z;
+                if (data.map_scale !== undefined) chartConfig.scale = data.map_scale;
+                if (data.map_opacity !== undefined) {
+                    chartConfig.opacity = data.map_opacity;
+                    baseMapOpacity = data.map_opacity;
+                }
+                if (data.map_rotation !== undefined) chartConfig.rotation = data.map_rotation;
+            }).catch(e => console.error("Could not load initial settings", e));
+
+            loadMap();
+            updateScoreDisplay();
+            loop();
+            animate();
+        }
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                document.body.style.display = 'none';
+                document.body.offsetHeight; // trigger reflow
+                document.body.style.display = '';
+                resize();
+            }, 100);
+        });
+        async function loadMap() { try { const res = await fetch('/get_map_points'); const data = await res.json(); staticWaypoints = data.waypoints; } catch (e) { } }
+
+        async function loop() {
+            try {
+                const res = await fetch('/get_radar');
+                const data = await res.json();
+
+                data.planes.forEach(serverPlane => {
+                    let existing = planes.find(p => p.id === serverPlane.id);
+                    if (existing) {
+                        existing.targetX = serverPlane.x;
+                        existing.targetZ = serverPlane.z;
+                        existing.heading = serverPlane.heading;
+                        existing.status = serverPlane.status;
+                        existing.callsign = serverPlane.callsign;
+                        existing.custom_callsign = serverPlane.custom_callsign;
+                        existing.gate = serverPlane.gate;
+                        existing.type = serverPlane.type;
+                        existing.squawk = serverPlane.squawk;
+                        existing.entity_type = serverPlane.entity_type;
+                        existing.current_target = serverPlane.current_target;
+                        existing.active_wp_route = serverPlane.active_wp_route;
+                        existing.time_tracker = serverPlane.time_tracker;
+                        existing.route = serverPlane.route;
+                        existing.category = serverPlane.category;
+                        existing.started_up = serverPlane.started_up;
+                        existing.speed = serverPlane.speed;
+                        existing.sid = serverPlane.sid;
+                        existing.airways = serverPlane.airways;
+                        existing.pfl = serverPlane.pfl;
+                    } else {
+                        serverPlane.currentX = serverPlane.x;
+                        serverPlane.currentZ = serverPlane.z;
+                        serverPlane.targetX = serverPlane.x;
+                        serverPlane.targetZ = serverPlane.z;
+                        serverPlane.labelOffset = { x: 20, y: -20 };
+                        planes.push(serverPlane);
+
+                        // Newly Spawned Puff
+                        visualEffects.push({ type: 'puff', wx: serverPlane.currentX, wz: serverPlane.currentZ, progress: 0, speed: 0.03, maxRadius: 50, r: 150, g: 255, b: 150 });
+
+                        // Clear ghost planes when a real plane arrives
+                        ghostPlanes = [];
+                    }
+                });
+
+                const activeIDs = data.planes.map(p => p.id);
+                // Deleted Planes Puff
+                planes.forEach(p => {
+                    if (!activeIDs.includes(p.id)) {
+                        visualEffects.push({ type: 'puff', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.03, maxRadius: 50, r: 255, g: 100, b: 100 });
+                    }
+                });
+
+                planes = planes.filter(p => activeIDs.includes(p.id));
+
+                isPaused = data.sim_paused;
+                currentWeather = data.weather || 'clear';
+                if (data.student_score !== undefined && data.score_history !== undefined) {
+                    if (currentStudentScore !== data.student_score || scoreHistory.length !== data.score_history.length) {
+                        currentStudentScore = data.student_score;
+                        scoreHistory = data.score_history || [];
+                        renderScoreLog();
+                        updateScoreDisplay();
+                    }
+                }
+
+                // Periodic map sync (independent of other changes)
+                if (data.map_settings && calibrationState === 'off') {
+                    chartConfig.x = data.map_settings.x;
+                    chartConfig.z = data.map_settings.z;
+                    chartConfig.scale = data.map_settings.scale;
+                    chartConfig.rotation = data.map_settings.rotation;
+                }
+                toggleWidgetRain(currentWeather === 'rain');
+                document.body.classList.toggle('weather-clear', currentWeather === 'clear');
+                targetChartOpacity = (currentWeather === 'rain') ? Math.max(0, baseMapOpacity - 0.2) : baseMapOpacity;
+                updatePauseVisuals();
+
+                if (selectedPlane) {
+                    const p = planes.find(x => x.id === selectedPlane);
+                    if (p) {
+                        updateFlightStrip(p);
+                        if (document.activeElement.id !== 'editType') document.getElementById('editType').value = p.type || "";
+                        if (document.activeElement.id !== 'standNum') document.getElementById('standNum').value = p.gate || "";
+                        if (document.activeElement.id !== 'visualName') document.getElementById('visualName').value = p.custom_callsign || p.callsign || "";
+                        if (document.activeElement.id !== 'editSquawk') document.getElementById('editSquawk').value = p.squawk || "";
+                        if (document.activeElement.id !== 'editRoute') document.getElementById('editRoute').value = p.route || "";
+                        if (document.activeElement.id !== 'editSid') document.getElementById('editSid').value = p.sid || "";
+                        if (document.activeElement.id !== 'editAirways') document.getElementById('editAirways').value = p.airways || "";
+                        if (document.activeElement.id !== 'editPfl') document.getElementById('editPfl').value = p.pfl || "";
+
+                        // Update Category Buttons
+                        ['arrival', 'departure', 'local', 'ground'].forEach(cat => {
+                            let btn = document.getElementById('btn-cat-' + cat);
+                            if (btn) {
+                                if (p.category === cat) {
+                                    btn.style.backgroundColor = '#5cadff';
+                                    btn.style.color = '#fff';
+                                } else {
+                                    btn.style.backgroundColor = '';
+                                    btn.style.color = '';
+                                }
+                            }
+                        });
+
+                        // Update Speed Slider & Label
+                        let currentSpeed = p.speed || 2;
+                        if (typeof updateSpeedLabel === 'function') updateSpeedLabel(currentSpeed);
+                        let slider = document.getElementById('speedSlider');
+                        if (slider && document.activeElement.id !== 'speedSlider') slider.value = currentSpeed;
+
+                        let startupRow = document.getElementById('row-startup');
+                        if (p.category === 'departure' || p.category === 'local') {
+                            startupRow.style.display = 'flex';
+                            let btnS = document.getElementById('btn-startup');
+                            if (p.started_up) {
+                                btnS.style.backgroundColor = '#FFCC00';
+                                btnS.style.color = '#000';
+                                btnS.innerText = 'MARK AS SHUT DOWN';
+                            } else {
+                                btnS.style.backgroundColor = '';
+                                btnS.style.color = '';
+                                btnS.innerText = 'MARK AS STARTED UP';
+                            }
+                        } else {
+                            startupRow.style.display = 'none';
+                        }
+                    } else {
+                        document.getElementById('control-panel').classList.add('hidden');
+                        document.getElementById('time-tracker-panel').classList.add('hidden');
+                        setTimeout(() => { document.getElementById('time-tracker-panel').style.display = 'none'; }, 400);
+                        selectedPlane = null;
+                    }
+                }
+
+                updateStripBay();
+
+            } catch (e) { }
+            setTimeout(loop, 250);
+        }
+
+        function animate() {
+            planes.forEach(p => {
+                if (p.currentX !== undefined && p.targetX !== undefined) {
+                    let dx = p.targetX - p.currentX;
+                    let dz = p.targetZ - p.currentZ;
+                    let dist = Math.sqrt(dx * dx + dz * dz);
+                    let currentSpeedMultiplier = 1.0;
+                    if (p.speed === 1) currentSpeedMultiplier = 0.5;
+                    else if (p.speed === 3) currentSpeedMultiplier = 1.5;
+                    else if (p.speed === 4) currentSpeedMultiplier = 2.0;
+
+                    let speed = 0.1 * currentSpeedMultiplier;
+                    let maxMove = 1.0 * currentSpeedMultiplier;
+                    let moveX = dx * speed; let moveZ = dz * speed;
+                    let moveDist = Math.sqrt(moveX * moveX + moveZ * moveZ);
+                    if (moveDist > maxMove) { let ratio = maxMove / moveDist; moveX *= ratio; moveZ *= ratio; }
+                    if (dist > 0.01) { p.currentX += moveX; p.currentZ += moveZ; }
+                }
+
+                // Smooth glow interpolation for aircraft
+                p.glowLevel = p.glowLevel || 0;
+                let targetGlow = (p.id === hoveredPlaneId || p.id === selectedPlane) ? 1.0 : 0.0;
+                p.glowLevel += (targetGlow - p.glowLevel) * 0.15;
+            });
+
+            // Smooth Camera Movement
+            if (!isDraggingMap) {
+                cameraX += (targetCameraX - cameraX) * 0.1;
+                cameraZ += (targetCameraZ - cameraZ) * 0.1;
+            }
+
+            staticWaypoints.forEach(wp => {
+                // Smooth glow interpolation for waypoints
+                wp.glowLevel = wp.glowLevel || 0;
+                let targetGlow = (wp.id === hoveredWaypointId && selectedPlane) ? 1.0 : 0.0;
+                wp.glowLevel += (targetGlow - wp.glowLevel) * 0.15;
+            });
+
+            // Route Tracing Animation
+            if (isClearingRoute) {
+                routeAnimProgress -= 0.15; // Faster clear
+                if (routeAnimProgress <= 0) {
+                    routeAnimProgress = 0;
+                    buildRoute = [];
+                    isClearingRoute = false;
+                    updateRouteBox();
+                }
+            } else {
+                if (routeAnimProgress < buildRoute.length) {
+                    routeAnimProgress += 0.08; // Animation speed
+                    if (routeAnimProgress > buildRoute.length) routeAnimProgress = buildRoute.length;
+                } else if (routeAnimProgress > buildRoute.length) {
+                    routeAnimProgress = buildRoute.length; // Snap if shortened
+                }
+            }
+
+            // Update Particle Effects
+            visualEffects.forEach(eff => {
+                eff.progress += eff.speed;
+            });
+            visualEffects = visualEffects.filter(eff => eff.progress < 1.0);
+
+            // Update Rain & Splashes
+            let widgetRects = [];
+            if (currentWeather === 'rain') {
+                // Gather visible widget bounding boxes for collision
+                document.querySelectorAll('.widget:not(.hidden)').forEach(w => {
+                    let rect = w.getBoundingClientRect();
+                    widgetRects.push({ x: rect.left, y: rect.top, w: rect.width, h: rect.height });
+                });
+
+                if (Math.random() > 0.3) {
+                    for (let i = 0; i < 3; i++) {
+                        rainParticles.push({
+                            x: Math.random() * canvas.width,
+                            y: -20,
+                            speed: 15 + Math.random() * 10,
+                            length: 20 + Math.random() * 20
+                        });
+                    }
+                }
+            } else {
+                rainParticles = []; // Clear quickly if stopped
+            }
+
+            for (let i = rainParticles.length - 1; i >= 0; i--) {
+                let p = rainParticles[i];
+                p.y += p.speed;
+                let collided = false;
+
+                // Check Widget Collision (only the bottom tip of the raindrop)
+                let tipY = p.y;
+                for (let r of widgetRects) {
+                    if (p.x >= r.x && p.x <= r.x + r.w && tipY >= r.y && tipY <= r.y + 15) { // Only collide with top edge roughly
+                        collided = true;
+                        // Spawn Splash
+                        rainSplashes.push({
+                            x: p.x, y: r.y,
+                            life: 1.0,
+                            dx: (Math.random() - 0.5) * 4,
+                            dy: -Math.random() * 3 - 1
+                        });
+                        break;
+                    }
+                }
+
+                // Check Callsign Tag Collision
+                if (!collided) {
+                    for (let plane of planes) {
+                        let r = plane.labelRect;
+                        if (r && p.x >= r.x && p.x <= r.x + r.w && tipY >= r.y && tipY <= r.y + 8) {
+                            collided = true;
+                            rainSplashes.push({
+                                x: p.x, y: r.y,
+                                life: 0.8,
+                                dx: (Math.random() - 0.5) * 3,
+                                dy: -Math.random() * 2 - 0.5
+                            });
+                            break;
+                        }
+                    }
+                }
+
+                if (collided || p.y > canvas.height + 50) {
+                    rainParticles.splice(i, 1);
+                }
+            }
+
+            // Update Splashes
+            for (let i = rainSplashes.length - 1; i >= 0; i--) {
+                let s = rainSplashes[i];
+                s.x += s.dx;
+                s.y += s.dy;
+                s.dy += 0.3; // gravity
+                s.life -= 0.08;
+                if (s.life <= 0) rainSplashes.splice(i, 1);
+            }
+
+            // Cleanup ghosts that timed out
+            ghostPlanes = ghostPlanes.filter(g => Date.now() - g.spawnTime < 15000);
+
+            draw();
+            requestAnimationFrame(animate);
+        }
+
+        function updatePauseVisuals() { const text = document.getElementById('sys-status-text'); const widget = document.getElementById('info-panel'); if (isPaused) { text.innerText = "HALTED"; text.classList.add('paused-text'); widget.classList.add('paused-state'); } else { text.innerText = "LIVE"; text.classList.remove('paused-text'); widget.classList.remove('paused-state'); } }
+        function updateFlightStrip(plane) {
+            let title = plane.custom_callsign || plane.callsign || plane.id;
+            document.getElementById('panel-title').innerText = title;
+
+            let isGroundVeh = (plane.entity_type === 'automobile');
+            let isUndefinedAuto = isGroundVeh && !plane.custom_callsign;
+            const strip = document.getElementById('panel-flight-strip');
+            const infoEdit = document.getElementById('panel-info-edit');
+            const infoEdit2 = document.getElementById('panel-info-edit-2');
+            const routeTools = document.getElementById('panel-route-tools');
+            const autoSelect = document.getElementById('panel-auto-select');
+            const btnRow = document.querySelector('#control-panel > .btn-row');
+
+            const btnPark = document.getElementById('btn-park');
+
+            const timePanel = document.getElementById('time-tracker-panel');
+            if (isUndefinedAuto || isGroundVeh) {
+                timePanel.classList.add('hidden');
+                setTimeout(() => { timePanel.style.display = 'none'; }, 400);
+            } else {
+                let showTracker = false;
+
+                const divTO = document.getElementById('tt-departure');
+                const divARR = document.getElementById('tt-arrival');
+
+                divTO.style.display = 'none';
+                divARR.style.display = 'none';
+
+                if (plane.category === 'departure') {
+                    showTracker = true;
+                    divTO.style.display = 'block';
+                } else if (plane.category === 'arrival') {
+                    showTracker = true;
+                    divARR.style.display = 'flex';
+                } else if (plane.category === 'local') {
+                    showTracker = true;
+                    divTO.style.display = 'block';
+                    divARR.style.display = 'flex';
+                }
+
+                if (showTracker) {
+                    timePanel.style.display = 'flex';
+                    setTimeout(() => { timePanel.classList.remove('hidden'); }, 10);
+                } else {
+                    timePanel.classList.add('hidden');
+                    setTimeout(() => { timePanel.style.display = 'none'; }, 400);
+                }
+
+                // Update text values
+                let tt = plane.time_tracker || { takeoff: null, landing: null, go_around: null };
+                document.getElementById('tt-val-takeoff').innerText = tt.takeoff || "--:--";
+                document.getElementById('tt-val-landing').innerText = tt.landing || "--:--";
+                document.getElementById('tt-val-go_around').innerText = tt.go_around || "--:--";
+            }
+
+            if (isUndefinedAuto) {
+                // Show only the vehicle type picker
+                strip.style.display = 'none';
+                infoEdit.style.display = 'none';
+                if (infoEdit2) infoEdit2.style.display = 'none';
+                routeTools.style.display = 'none';
+                autoSelect.style.display = 'block';
+                if (btnRow) btnRow.style.display = 'none';
+                const btnFly = document.getElementById('btn-fly');
+                if (btnFly) btnFly.style.display = 'none';
+                if (btnPark) btnPark.style.display = 'none';
+            } else if (isGroundVeh) {
+                autoSelect.style.display = 'none';
+                if (btnRow) btnRow.style.display = 'flex';
+                strip.style.display = 'none';
+                infoEdit.style.display = 'none';
+                if (infoEdit2) infoEdit2.style.display = 'none';
+                routeTools.style.display = 'block';
+                const btnFly = document.getElementById('btn-fly');
+                if (btnFly) btnFly.style.display = 'none';
+                if (btnPark) btnPark.style.display = '';
+            } else {
+                autoSelect.style.display = 'none';
+                if (btnRow) btnRow.style.display = 'flex';
+                strip.style.display = 'block';
+                infoEdit.style.display = 'flex';
+                if (infoEdit2) infoEdit2.style.display = 'flex';
+                routeTools.style.display = 'block';
+                const btnFly = document.getElementById('btn-fly');
+                if (btnFly) btnFly.style.display = '';
+                if (btnPark) btnPark.style.display = 'none';
+                document.getElementById('fs-type').innerText = plane.type || "UNK";
+                document.getElementById('fs-squawk').innerText = plane.squawk || "1200";
+                document.getElementById('fs-sid').innerText = plane.sid || "--";
+                document.getElementById('fs-airways').innerText = plane.airways || "--";
+                document.getElementById('fs-pfl').innerText = plane.pfl || "--";
+                document.getElementById('fs-route').innerText = (plane.category === 'local') ? "LOCAL" : (plane.route || "--");
+            }
+        }
+
+        function selectAndCenterPlane(id) {
+            selectPlane(id);
+            const p = planes.find(x => x.id === id);
+            if (p) {
+                targetCameraX = p.currentX;
+                targetCameraZ = p.currentZ;
+            }
+            updateStripBay(); // Immediately update active class
+        }
+
+        function updateStripBay() {
+            // Remove stale strips from anywhere inside strip-container
+            let existingStrips = Array.from(document.querySelectorAll('.sidebar-strip'));
+            existingStrips.forEach(el => {
+                let pid = el.dataset.id;
+                if (!planes.find(p => p.id === pid) && !ghostPlanes.find(g => g.id === pid)) {
+                    el.remove();
+                }
+            });
+
+            planes.forEach(p => {
+                let isUndefinedVehicle = p.entity_type === 'automobile' && !p.custom_callsign;
+                let label = isUndefinedVehicle ? '⚠ DEFINE TYPE' : (p.custom_callsign || p.callsign || p.id);
+                let type = p.type || "UNK";
+                let sq = p.squawk || "1200";
+                let cat = p.category || 'undefined';
+
+                let themeClass = 'theme-' + cat;
+
+                let isGroundVeh = (p.entity_type === 'automobile');
+                let startedTag = (p.started_up && (cat === 'departure' || cat === 'local')) ? ' <span style="color:#FFCC00; font-size:10px;">[S]</span>' : '';
+
+                let detailHtml = isGroundVeh ? '' : `
+                    <div class="strip-details">
+                        <span class="strip-type">${type}</span>
+                        <span class="strip-sq">SQ: ${sq}</span>
+                    </div>`;
+
+                let existingEl = document.getElementById('strip-' + p.id);
+                if (existingEl) {
+                    existingEl.className = 'sidebar-strip ' + themeClass + (selectedPlane === p.id ? ' active' : '') + (isUndefinedVehicle ? ' undefined-vehicle-strip' : '');
+                    existingEl.draggable = true;
+                    existingEl.ondragstart = (e) => e.dataTransfer.setData('text/plain', p.id);
+                    existingEl.querySelector('.strip-callsign').innerHTML = label + startedTag;
+                    let detRow = existingEl.querySelector('.strip-details');
+                    if (detRow && !isGroundVeh) {
+                        existingEl.querySelector('.strip-type').innerText = type;
+                        existingEl.querySelector('.strip-sq').innerText = 'SQ: ' + sq;
+                    } else if (detRow && isGroundVeh) {
+                        detRow.remove();
+                    } else if (!detRow && !isGroundVeh) {
+                        existingEl.innerHTML = `<div class="strip-callsign">${label}${startedTag}</div>${detailHtml}`;
+                    }
+
+                    // Move to correct category container if it changed
+                    let targetContainer = document.getElementById('cat-container-' + cat);
+                    if (targetContainer && existingEl.parentElement !== targetContainer) {
+                        targetContainer.appendChild(existingEl);
+                    }
+                } else {
+                    let div = document.createElement('div');
+                    div.id = 'strip-' + p.id;
+                    div.dataset.id = p.id;
+                    div.className = 'sidebar-strip ' + themeClass + (selectedPlane === p.id ? ' active' : '') + (isUndefinedVehicle ? ' undefined-vehicle-strip' : '');
+                    div.draggable = true;
+                    div.ondragstart = (e) => e.dataTransfer.setData('text/plain', p.id);
+                    div.onclick = () => selectAndCenterPlane(p.id);
+
+                    div.onmouseenter = () => { hoveredPlaneId = p.id; };
+                    div.onmouseleave = () => { if (hoveredPlaneId === p.id) hoveredPlaneId = null; };
+
+                    div.innerHTML = `
+                        <div class="strip-callsign">${label}${startedTag}</div>
+                        ${detailHtml}
+                    `;
+                    let targetContainer = document.getElementById('cat-container-' + cat);
+                    if (targetContainer) targetContainer.appendChild(div);
+                }
+            });
+
+            // Draw Ghost Strips
+            ghostPlanes.forEach(g => {
+                let isGround = (g.type === 'FOLLOWME' || g.type === 'TRUCK');
+                let cat = isGround ? 'ground' : 'undefined';
+                let container = document.getElementById('cat-container-' + cat);
+                if (container) {
+                    let existingEl = document.getElementById('strip-' + g.id);
+                    if (!existingEl) {
+                        let div = document.createElement('div');
+                        div.id = 'strip-' + g.id;
+                        div.dataset.id = g.id;
+                        div.className = 'sidebar-strip ghost-strip theme-' + cat;
+
+                        let detHtml = isGround ? '' : `
+                            <div class="strip-details">
+                                <span class="strip-type">${g.type.split(':').pop().toUpperCase()}</span>
+                                <span class="strip-sq">STANDBY</span>
+                            </div>
+                        `;
+
+                        div.innerHTML = `
+                            <div class="strip-callsign">SPAWNING...</div>
+                            ${detHtml}
+                        `;
+                        container.appendChild(div);
+                    }
+                }
+            });
+
+            // Hide/Show Headers based on content
+            ['undefined', 'arrival', 'departure', 'local', 'ground'].forEach(cat => {
+                let container = document.getElementById('cat-container-' + cat);
+                let header = document.getElementById('header-' + cat);
+                if (container && header) {
+                    if (cat === 'arrival' || cat === 'departure' || cat === 'local') {
+                        header.style.display = 'block';
+                    } else {
+                        header.style.display = container.children.length === 0 ? 'none' : 'block';
+                    }
+                }
+            });
+        }
+
+        function draw() {
+            ctx.fillStyle = "#090a0c"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Interaction Animations (under the map)
+            visualEffects.forEach(eff => {
+                if (eff.type === 'ripple') {
+                    let s = worldToScreen(eff.wx, eff.wz);
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, eff.maxRadius * eff.progress * zoomLevel, 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(${eff.r}, ${eff.g}, ${eff.b}, ${1.0 - eff.progress})`;
+                    ctx.lineWidth = 3 - (eff.progress * 2);
+                    ctx.stroke();
+                } else if (eff.type === 'spawnLine') {
+                    let s = worldToScreen(eff.wx, eff.wz);
+                    ctx.beginPath();
+                    ctx.moveTo(s.x, 0); ctx.lineTo(s.x, canvas.height);
+                    ctx.moveTo(0, s.y); ctx.lineTo(canvas.width, s.y);
+                    ctx.strokeStyle = `rgba(${eff.r}, ${eff.g}, ${eff.b}, ${0.5 * (1.0 - eff.progress)})`;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                } else if (eff.type === 'puff') {
+                    let s = worldToScreen(eff.wx, eff.wz);
+                    ctx.beginPath();
+                    // Ease-out curve for growth
+                    let rProgress = 1 - Math.pow(1 - eff.progress, 3);
+                    ctx.arc(s.x, s.y, eff.maxRadius * rProgress * zoomLevel, 0, Math.PI * 2);
+                    ctx.fillStyle = `rgba(${eff.r}, ${eff.g}, ${eff.b}, ${0.6 * (1.0 - eff.progress)})`;
+                    ctx.fill();
+                }
+            });
+
+            if (chartLoaded) {
+                // Smoothly lerp chart opacity
+                chartConfig.opacity += (targetChartOpacity - chartConfig.opacity) * 0.03;
+                ctx.save(); ctx.globalAlpha = chartConfig.opacity;
+                const c = worldToScreen(chartConfig.x, chartConfig.z);
+                ctx.translate(c.x, c.y); ctx.rotate((chartConfig.rotation || 0) * Math.PI / 180);
+                const s = zoomLevel * chartConfig.scale; ctx.scale(s, s);
+                ctx.drawImage(chartImg, -chartImg.width / 2, -chartImg.height / 2); ctx.restore();
+            }
+
+            // Draw Rain Particles & Splashes
+            if (rainParticles.length > 0 || rainSplashes.length > 0) {
+                ctx.strokeStyle = "rgba(100, 150, 200, 0.4)";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                rainParticles.forEach(p => {
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(p.x - p.speed * 0.2, p.y - p.length); // Slight angle
+                });
+                ctx.stroke();
+
+                ctx.fillStyle = "rgba(150, 200, 255, 0.6)";
+                rainSplashes.forEach(s => {
+                    ctx.globalAlpha = s.life;
+                    ctx.fillRect(s.x, s.y, 2, 2);
+                });
+                ctx.globalAlpha = 1.0;
+            }
+
+            // drawGrid();
+
+            // Waypoints and routes are now drawn after planes to keep them visible when overlapping
+
+            planes.forEach(plane => {
+                const p = worldToScreen(plane.currentX, plane.currentZ);
+                const labelX = p.x + (plane.labelOffset ? plane.labelOffset.x : 20);
+                const labelY = p.y + (plane.labelOffset ? plane.labelOffset.y : -20);
+
+                let glow = plane.glowLevel || 0;
+                let isUndefinedAuto = plane.entity_type === 'automobile' && !plane.custom_callsign;
+                let isSelected = plane.id === selectedPlane;
+                let isHovered = plane.id === hoveredPlaneId && !isSelected;
+
+                // 1. Draw Aircraft or Car
+                ctx.save(); ctx.translate(p.x, p.y);
+                ctx.rotate((plane.heading) * Math.PI / 180);
+                let color = '#556677';
+                let cat = plane.category || 'undefined';
+                if (cat === 'arrival') color = '#ffcc00';
+                else if (cat === 'departure') color = '#00d2ff';
+                else if (cat === 'local') color = '#ffffff';
+                else if (cat === 'ground') color = '#556677';
+                else if (cat === 'undefined') color = '#888888';
+
+                ctx.fillStyle = color;
+
+                let planeLabel = plane.custom_callsign || plane.callsign || plane.id;
+
+                if (plane.entity_type === 'automobile') {
+                    // Draw a car shape
+                    let s = Math.max(0.7, zoomLevel) * 0.5;
+                    ctx.beginPath();
+                    ctx.roundRect(-6 * s, -10 * s, 12 * s, 20 * s, 3 * s);
+                    ctx.fill();
+
+                    // Shape outline for hover/selection/undefined auto
+                    if (isUndefinedAuto) {
+                        let pulse = 0.5 + 0.5 * Math.sin(Date.now() / 300);
+                        ctx.strokeStyle = `rgba(255, 180, 0, ${0.4 + pulse * 0.6})`;
+                        ctx.shadowBlur = 10 + pulse * 15;
+                        ctx.shadowColor = "#ffaa00";
+                        ctx.lineWidth = 2 + pulse;
+                        ctx.stroke();
+                    } else if (glow > 0.01) {
+                        if (isSelected) {
+                            ctx.strokeStyle = `rgba(255, 255, 255, ${glow})`;
+                            ctx.shadowColor = "#ffffff";
+                        } else {
+                            ctx.strokeStyle = `rgba(180, 180, 180, ${glow})`;
+                            ctx.shadowColor = "#aaaaaa";
+                        }
+                        ctx.shadowBlur = glow * 12;
+                        ctx.lineWidth = 1.5 + glow;
+                        ctx.stroke();
+                    }
+
+                    // Lightbar
+                    ctx.fillStyle = "#ffaa00";
+                    ctx.fillRect(-3 * s, -2 * s, 6 * s, 2 * s);
+                } else {
+                    // Draw normal aircraft shape
+                    let s = Math.max(0.7, zoomLevel) * 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -12 * s); ctx.lineTo(8 * s, 10 * s); ctx.lineTo(0, 6 * s); ctx.lineTo(-8 * s, 10 * s);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Shape outline for hover/selection
+                    if (glow > 0.01) {
+                        if (isSelected) {
+                            ctx.strokeStyle = `rgba(255, 255, 255, ${glow})`;
+                            ctx.shadowColor = "#ffffff";
+                        } else {
+                            ctx.strokeStyle = `rgba(180, 180, 180, ${glow})`;
+                            ctx.shadowColor = "#aaaaaa";
+                        }
+                        ctx.shadowBlur = glow * 12;
+                        ctx.lineWidth = 1.5 + glow;
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+
+                let isUndefinedAutoLabel = plane.entity_type === 'automobile' && !plane.custom_callsign;
+                let label = isUndefinedAutoLabel ? '⚠ DEFINE' : (plane.custom_callsign || plane.callsign || plane.id);
+                ctx.font = "bold 11px 'Segoe UI', sans-serif";
+                let tm = ctx.measureText(label);
+                let boxW = tm.width + 14; let boxH = 22;
+                let boxR = 4; // corner radius
+
+                // 2. Draw Leader Line (if dragged far enough)
+                ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+                ctx.lineWidth = 1;
+
+                let cx = labelX + boxW / 2;
+                let cy = labelY + boxH / 2;
+                let rayX = p.x - cx;
+                let rayY = p.y - cy;
+
+                let fX = rayX === 0 ? Infinity : (boxW / 2) / Math.abs(rayX);
+                let fY = rayY === 0 ? Infinity : (boxH / 2) / Math.abs(rayY);
+                let f = Math.min(fX, fY);
+
+                if (f < 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(p.x, p.y);
+                    ctx.lineTo(cx + rayX * f, cy + rayY * f);
+                    ctx.stroke();
+                }
+
+                // 3. Draw Label Box
+
+                // Save rect for hit testing
+                plane.labelRect = { x: labelX - 1, y: labelY - 1, w: boxW + 2, h: boxH + 2 };
+
+                // --- GLASS BACKGROUND ---
+                ctx.save();
+                ctx.beginPath();
+                ctx.roundRect(labelX, labelY, boxW, boxH, boxR);
+                ctx.clip();
+
+                // Glass Backdrop Gradient
+                let bgGrad = ctx.createLinearGradient(labelX, labelY, labelX, labelY + boxH);
+                if (currentWeather === 'clear') {
+                    bgGrad.addColorStop(0, 'rgba(40, 55, 75, 0.45)');
+                    bgGrad.addColorStop(1, 'rgba(25, 35, 50, 0.35)');
+                } else {
+                    bgGrad.addColorStop(0, 'rgba(20, 30, 45, 0.4)');
+                    bgGrad.addColorStop(1, 'rgba(10, 15, 25, 0.3)');
+                }
+                ctx.fillStyle = bgGrad;
+                if (isUndefinedAutoLabel) ctx.fillStyle = 'rgba(40, 25, 0, 0.9)';
+                ctx.fill();
+
+                // Diagonal Sheen (Reflection)
+                let sheenX = (Date.now() / 4000) % 2 - 1; // Cycle -1 to 1
+                let sheenGrad = ctx.createLinearGradient(labelX + sheenX * boxW, labelY, labelX + (sheenX + 0.5) * boxW, labelY + boxH);
+                sheenGrad.addColorStop(0, 'transparent');
+                sheenGrad.addColorStop(0.5, currentWeather === 'clear' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)');
+                sheenGrad.addColorStop(1, 'transparent');
+                ctx.fillStyle = sheenGrad;
+                if (!isUndefinedAutoLabel) ctx.fill();
+
+                ctx.restore();
+
+                // Border & Highlights
+                ctx.beginPath();
+                ctx.roundRect(labelX, labelY, boxW, boxH, boxR);
+                let borderColor = isUndefinedAutoLabel ? `rgba(255, 170, 0, ${0.5 + 0.5 * Math.sin(Date.now() / 300)})` : color;
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = 1;
+                ctx.stroke();
+
+                // Top Edge Highlight
+                if (!isUndefinedAutoLabel) {
+                    ctx.beginPath();
+                    ctx.moveTo(labelX + 2, labelY + 0.5);
+                    ctx.lineTo(labelX + boxW - 2, labelY + 0.5);
+                    ctx.strokeStyle = currentWeather === 'clear' ? 'rgba(220, 240, 255, 0.5)' : 'rgba(180, 220, 255, 0.3)';
+                    ctx.lineWidth = 0.8;
+                    ctx.stroke();
+                }
+
+                // Text
+                ctx.fillStyle = isUndefinedAutoLabel ? '#ffaa00' : '#e8e8e8';
+                if (currentWeather === 'clear' && !isUndefinedAutoLabel) ctx.shadowBlur = 4;
+                ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                ctx.fillText(label, labelX + 7, labelY + 15);
+                ctx.shadowBlur = 0;
+
+                // --- RAIN DRIP EFFECTS ON TAGS ---
+                if (currentWeather === 'rain') {
+                    ctx.save();
+                    // Clip to the label box to keep drips inside
+                    ctx.beginPath();
+                    ctx.roundRect(labelX, labelY, boxW, boxH, boxR);
+                    ctx.clip();
+
+                    // Procedural seed based on plane ID
+                    let seed = 0;
+                    for (let charIdx = 0; charIdx < plane.id.length; charIdx++) {
+                        seed += plane.id.charCodeAt(charIdx);
+                    }
+
+                    // 1. Falling Streaks (Fast)
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i < 3; i++) {
+                        let localSeed = seed + i * 137;
+                        let xOff = ((localSeed % 100) / 100) * boxW;
+                        let speed = 2 + (localSeed % 3);
+                        let time = (Date.now() / 1000) * speed;
+                        let yPos = (time % 1.5) * boxH * 1.5 - (boxH / 2);
+
+                        let gradient = ctx.createLinearGradient(labelX + xOff, labelY + yPos - 15, labelX + xOff, labelY + yPos);
+                        gradient.addColorStop(0, 'transparent');
+                        gradient.addColorStop(1, 'rgba(150, 200, 255, 0.15)');
+
+                        ctx.strokeStyle = gradient;
+                        ctx.beginPath();
+                        ctx.moveTo(labelX + xOff, labelY + yPos - 15);
+                        ctx.lineTo(labelX + xOff, labelY + yPos);
+                        ctx.stroke();
+                    }
+
+                    // 2. Sliding Droplets (Slow)
+                    for (let i = 0; i < 2; i++) {
+                        let localSeed = seed + i * 541;
+                        let xOff = ((localSeed % 100) / 100) * boxW;
+                        let speed = 0.2 + ((localSeed % 5) / 10);
+                        let time = (Date.now() / 1000) * speed;
+                        let yPos = (time % 1) * boxH;
+
+                        // Droplet "pulse" or flicker
+                        let alpha = 0.2 + 0.3 * Math.sin(time * 5 + localSeed);
+
+                        ctx.fillStyle = `rgba(200, 230, 255, ${alpha})`;
+                        ctx.beginPath();
+                        ctx.ellipse(labelX + xOff, labelY + yPos, 1.5, 2.5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+            });
+
+            // Draw Ghost Planes
+            ghostPlanes.forEach(g => {
+                const p = worldToScreen(g.x, g.z);
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 150) * 0.3; // pulsing
+                ctx.fillStyle = '#888888';
+                ctx.beginPath();
+                let s = Math.max(0.7, zoomLevel) * 0.5;
+                ctx.moveTo(0, -12 * s); ctx.lineTo(8 * s, 10 * s); ctx.lineTo(0, 6 * s); ctx.lineTo(-8 * s, 10 * s);
+                ctx.fill();
+                ctx.restore();
+
+                let labelX = p.x + 20;
+                let labelY = p.y - 20;
+                let label = "SPAWNING...";
+                ctx.font = "bold 11px sans-serif";
+                let tm = ctx.measureText(label);
+                let boxW = tm.width + 8; let boxH = 16;
+                ctx.globalAlpha = 1.0;
+                ctx.fillStyle = "rgba(50, 50, 50, 0.6)";
+                ctx.fillRect(labelX, labelY, boxW, boxH);
+                ctx.strokeStyle = '#888888';
+                ctx.strokeRect(labelX, labelY, boxW, boxH);
+                ctx.fillStyle = "#ffffff";
+                ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 150) * 0.3; // match pulsing
+                ctx.fillText(label, labelX + 4, labelY + 12);
+                ctx.globalAlpha = 1.0;
+            });
+
+            // Waypoints
+            staticWaypoints.forEach(wp => {
+                const p = worldToScreen(wp.x, wp.z); if (isOffScreen(p)) return;
+
+                if (debugMode) {
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.font = '10px monospace';
+                    ctx.shadowBlur = 0;
+                    ctx.fillText(wp.id, p.x + 12, p.y - 12);
+                }
+
+                ctx.beginPath();
+
+                let glow = wp.glowLevel || 0;
+                let isHovered = (wp.id === hoveredWaypointId);
+
+                if (creatorMode && isHovered) {
+                    ctx.shadowBlur = 15;
+                    ctx.fillStyle = 'rgba(255, 50, 50, 1)';
+                    ctx.shadowColor = 'rgba(255, 50, 50, 0.8)';
+                    let rRadius = 2.0 * zoomLevel + (glow * 0.75 * zoomLevel);
+                    ctx.arc(p.x, p.y, rRadius, 0, Math.PI * 2);
+                } else {
+                    let isGround = (wp.y <= -50);
+                    ctx.shadowBlur = isGround ? (4 + (glow * 3)) : (8 + (glow * 7));
+
+                    let r, g, b;
+
+                    if (isGround) {
+                        // Technical Amber/Orange for ground
+                        r = Math.round(255);
+                        g = Math.round(180 + glow * 75);
+                        b = Math.round(0 + glow * 100);
+                    } else {
+                        // Standard Blue for air
+                        r = Math.round(0 + glow * 255);
+                        g = Math.round(210 + glow * 45);
+                        b = Math.round(255);
+                    }
+
+                    ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+                    ctx.shadowColor = ctx.fillStyle;
+                    let baseRadius = isGround ? 0.6 : 1.25;
+                    let glowFactor = isGround ? 0.35 : 0.75;
+                    let rRadius = baseRadius * zoomLevel + (glow * glowFactor * zoomLevel);
+                    ctx.arc(p.x, p.y, rRadius, 0, Math.PI * 2);
+                }
+
+                ctx.fill();
+            });
+            ctx.shadowBlur = 0;
+
+            if (buildRoute.length > 0 && routeAnimProgress > 0) {
+                let lineColor = isClearingRoute ? "#ff4444" : "#44ff44";
+                ctx.strokeStyle = lineColor; ctx.lineWidth = 2.0;
+                ctx.shadowBlur = 12; ctx.shadowColor = lineColor; // Glow Effect
+                ctx.beginPath();
+
+                let startP = null;
+                if (selectedPlane) {
+                    let planeObj = planes.find(p => p.id === selectedPlane);
+                    if (planeObj) startP = worldToScreen(planeObj.currentX, planeObj.currentZ);
+                }
+
+                if (startP) {
+                    ctx.moveTo(startP.x, startP.y);
+                    let lastP = startP;
+
+                    for (let i = 0; i < buildRoute.length; i++) {
+                        if (routeAnimProgress <= i) break; // Haven't reached drawing this segment yet
+
+                        let wp = getWaypointById(buildRoute[i]);
+                        if (!wp) break;
+                        let targetP = worldToScreen(wp.x, wp.z);
+
+                        let progressOnThisSegment = Math.min(1.0, routeAnimProgress - i);
+
+                        let drawX = lastP.x + (targetP.x - lastP.x) * progressOnThisSegment;
+                        let drawY = lastP.y + (targetP.y - lastP.y) * progressOnThisSegment;
+
+                        ctx.lineTo(drawX, drawY);
+                        lastP = targetP; // Store this as last for next iteration if reached
+                        if (progressOnThisSegment < 1.0) break; // Stop tracing further segments until animated
+                    }
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0; // reset
+            } else if (selectedPlane && buildRoute.length === 0) {
+                let planeObj = planes.find(p => p.id === selectedPlane);
+                if (planeObj && planeObj.active_wp_route && planeObj.active_wp_route.length > 0 && planeObj.current_target) {
+                    let pathIndex = planeObj.active_wp_route.indexOf(planeObj.current_target);
+                    if (pathIndex >= 0) {
+                        ctx.strokeStyle = "rgba(40, 200, 255, 0.7)";
+                        ctx.lineWidth = 1.5;
+                        ctx.setLineDash([8, 8]); // Dashed line for active route
+                        ctx.shadowBlur = 4;
+                        ctx.shadowColor = "rgba(40, 200, 255, 0.5)";
+                        ctx.beginPath();
+
+                        let startP = worldToScreen(planeObj.currentX, planeObj.currentZ);
+                        ctx.moveTo(startP.x, startP.y);
+
+                        // Draw to current target, then rest of the route
+                        for (let i = pathIndex; i < planeObj.active_wp_route.length; i++) {
+                            let wp = getWaypointById(planeObj.active_wp_route[i]);
+                            if (wp) {
+                                let targetP = worldToScreen(wp.x, wp.z);
+                                ctx.lineTo(targetP.x, targetP.y);
+                            }
+                        }
+                        ctx.stroke();
+                        ctx.setLineDash([]); // Reset dash
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            }
+
+            // Calibration markers
+            if (calibrationState !== 'off') {
+                // 1. Draw hovered block highlight
+                if (hoveredCalibBlock) {
+                    drawBlockHighlight(hoveredCalibBlock.x, hoveredCalibBlock.z, '#ffaa00', true);
+                }
+
+                // 2. Draw already calibrated points
+                calibPoints.forEach((p, i) => {
+                    // Convert image pixel back to screen for visualization
+                    const lx = (p.imgX - chartImg.width / 2) * chartConfig.scale;
+                    const lz = (p.imgZ - chartImg.height / 2) * chartConfig.scale;
+                    const rad = (chartConfig.rotation || 0) * Math.PI / 180;
+                    const rx = lx * Math.cos(rad) - lz * Math.sin(rad);
+                    const rz = lx * Math.sin(rad) + lz * Math.cos(rad);
+                    const worldX = chartConfig.x + rx;
+                    const worldZ = chartConfig.z + rz;
+                    const s = worldToScreen(worldX, worldZ);
+                    
+                    // Draw block highlight for the saved calibration points
+                    drawBlockHighlight(worldX, worldZ, '#ffaa00', false);
+                    
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#ffaa00';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillText(`P${i+1}`, s.x + 12, s.y + 4);
+                });
+            }
+
+            document.getElementById('debug-coords').innerText = `POS: ${Math.round(cameraX)}, ${Math.round(cameraZ)} | x${zoomLevel.toFixed(1)}`;
+        }
+
+        function drawGrid() { ctx.strokeStyle = '#1a2b3c'; ctx.lineWidth = 1; const gs = 100 * zoomLevel; const ox = (canvas.width / 2 + cameraX * zoomLevel) % gs; const oy = (canvas.height / 2 + cameraZ * zoomLevel) % gs; ctx.beginPath(); for (let x = ox; x < canvas.width; x += gs) { ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); } for (let y = oy; y < canvas.height; y += gs) { ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); } ctx.stroke(); }
+
+        // INPUT HANDLING
+        canvas.addEventListener('wheel', (e) => { e.preventDefault(); adjustZoom((e.deltaY < 0) ? 1.1 : 0.9); });
+
+        // TOUCH SUPPORT FOR PINCH AND PAN
+        let initialPinchDistance = null;
+        let initialZoomLevel = null;
+        let initialTouchCenter = null;
+        let initialCameraCenter = null;
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // Stop native gestures & synthetic mouse events
+            if (e.touches.length === 2) {
+                isDraggingMap = false;
+                draggingLabelPlaneId = null;
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                initialPinchDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+                initialZoomLevel = zoomLevel;
+                initialTouchCenter = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
+                initialCameraCenter = { x: cameraX, z: cameraZ };
+            } else if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                canvas.dispatchEvent(new MouseEvent('mousedown', { clientX: touch.clientX, clientY: touch.clientY }));
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 2 && initialPinchDistance) {
+                hasMoved = true; // MUST SET TRUE TO PREVENT CLICK TRIGGER ON TOUCHEND
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const currentDistance = Math.hypot(touch2.clientX - touch1.clientX, touch2.clientY - touch1.clientY);
+                const scale = currentDistance / initialPinchDistance;
+
+                zoomLevel = Math.max(0.1, Math.min(initialZoomLevel * scale, 5.0));
+
+                const currentCenter = { x: (touch1.clientX + touch2.clientX) / 2, y: (touch1.clientY + touch2.clientY) / 2 };
+                const dx = currentCenter.x - initialTouchCenter.x;
+                const dy = currentCenter.y - initialTouchCenter.y;
+                cameraX = initialCameraCenter.x + (dx / zoomLevel);
+                cameraZ = initialCameraCenter.z + (dy / zoomLevel);
+                targetCameraX = cameraX; targetCameraZ = cameraZ;
+            } else if (e.touches.length === 1) {
+                const touch = e.touches[0];
+                canvas.dispatchEvent(new MouseEvent('mousemove', { clientX: touch.clientX, clientY: touch.clientY }));
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            if (e.touches.length < 2) initialPinchDistance = null;
+            if (e.changedTouches.length === 1 && e.touches.length === 0) {
+                const touch = e.changedTouches[0];
+                canvas.dispatchEvent(new MouseEvent('mouseup', { clientX: touch.clientX, clientY: touch.clientY }));
+            }
+        });
+
+        canvas.addEventListener('mousedown', (e) => {
+            const mouseX = e.clientX; const mouseY = e.clientY;
+
+            // CHECK LABEL HIT
+            // Iterate backwards (draw order) to catch top labels first
+            for (let i = planes.length - 1; i >= 0; i--) {
+                const p = planes[i];
+                if (p.labelRect &&
+                    mouseX >= p.labelRect.x && mouseX <= p.labelRect.x + p.labelRect.w &&
+                    mouseY >= p.labelRect.y && mouseY <= p.labelRect.y + p.labelRect.h) {
+
+                    draggingLabelPlaneId = p.id;
+                    hasMoved = false;
+                    const screenP = worldToScreen(p.currentX, p.currentZ);
+                    // Calculate offset from current box position
+                    labelDragOffset = {
+                        x: mouseX - (screenP.x + p.labelOffset.x),
+                        y: mouseY - (screenP.y + p.labelOffset.y)
+                    };
+                    return; // Stop processing (don't drag map)
+                }
+            }
+
+            if (e.altKey || aircraftSpawnMode) {
+                const worldP = screenToWorld(mouseX, mouseY);
+                pendingSpawnCoords = { x: Math.round(worldP.x), z: Math.round(worldP.z) };
+
+                // Show menu at mouse
+                let menu = document.getElementById('alt-spawn-menu');
+                menu.style.left = mouseX + 'px';
+                menu.style.top = mouseY + 'px';
+                menu.classList.remove('hidden');
+
+                // Spawn Animation Preview
+                visualEffects.push({ type: 'spawnLine', wx: worldP.x, wz: worldP.z, progress: 0, speed: 0.05, r: 255, g: 100, b: 100 });
+                visualEffects.push({ type: 'ripple', wx: worldP.x, wz: worldP.z, progress: 0, speed: 0.02, maxRadius: 100, r: 255, g: 100, b: 100 });
+
+                // If it was spawn mode, optionally turn it off after one click? No, keep it on until manually toggled.
+                return;
+            }
+
+            // Hide context menus if clicking elsewhere
+            document.getElementById('alt-spawn-menu').classList.add('hidden');
+            if (e.target && !e.target.closest('#creator-spawn-menu')) {
+                document.getElementById('creator-spawn-menu').classList.add('hidden');
+            }
+
+            isDraggingMap = true; hasMoved = false;
+            dragStart = { x: mouseX, y: mouseY };
+            cameraStart = { x: cameraX, z: cameraZ };
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+
+            if (calibrationState !== 'off' && !isDraggingMap) {
+                const worldP = screenToWorld(mouseX, mouseY);
+                hoveredCalibBlock = { x: Math.round(worldP.x), z: Math.round(worldP.z) };
+            } else {
+                hoveredCalibBlock = null;
+            }
+
+            // Plane hover detection
+            hoveredPlaneId = null;
+            for (let i = planes.length - 1; i >= 0; i--) {
+                const p = planes[i];
+                if (p.labelRect && mouseX >= p.labelRect.x && mouseX <= p.labelRect.x + p.labelRect.w && mouseY >= p.labelRect.y && mouseY <= p.labelRect.y + p.labelRect.h) {
+                    hoveredPlaneId = p.id;
+                    break;
+                }
+                const s = worldToScreen(p.currentX, p.currentZ);
+                if (Math.hypot(s.x - mouseX, s.y - mouseY) < 30) {
+                    hoveredPlaneId = p.id;
+                    break;
+                }
+            }
+
+            // Waypoint hover detection
+            hoveredWaypointId = null;
+            if (selectedPlane || creatorMode) {
+                // Only enable hover when a plane is selected (capable of building route) OR in creatorMode
+                let hoveredWP = staticWaypoints.find(wp => {
+                    const s = worldToScreen(wp.x, wp.z);
+                    return Math.hypot(s.x - mouseX, s.y - mouseY) < 15;
+                });
+                if (hoveredWP) {
+                    hoveredWaypointId = hoveredWP.id;
+                    hoveredPlaneId = null; // Suppress plane highlight when a waypoint is prioritized
+                }
+            }
+
+            if (draggingLabelPlaneId) {
+                const p = planes.find(x => x.id === draggingLabelPlaneId);
+                if (p) {
+                    // Update Offset based on Mouse Pos relative to Aircraft Screen Pos
+                    const screenP = worldToScreen(p.currentX, p.currentZ);
+                    p.labelOffset.x = mouseX - screenP.x - labelDragOffset.x;
+                    p.labelOffset.y = mouseY - screenP.y - labelDragOffset.y;
+                    hasMoved = true; // Mark as moved so we don't treat it as a click
+                }
+                return;
+            }
+
+            if (!isDraggingMap) return;
+            const dx = mouseX - dragStart.x;
+            const dy = mouseY - dragStart.y;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasMoved = true;
+            cameraX = cameraStart.x + (dx / zoomLevel);
+            cameraZ = cameraStart.z + (dy / zoomLevel);
+            targetCameraX = cameraX;
+            targetCameraZ = cameraZ;
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (draggingLabelPlaneId) {
+                // Check if it was a click (didn't move much)
+                if (!hasMoved) selectPlane(draggingLabelPlaneId);
+                draggingLabelPlaneId = null;
+                return;
+            }
+            isDraggingMap = false;
+            if (hasMoved) return;
+            handleClick(e.clientX, e.clientY);
+        });
+
+        canvas.addEventListener('contextmenu', (e) => { e.preventDefault(); clearRoute(); });
+
+        function handleClick(x, y) {
+            let worldP = screenToWorld(x, y);
+
+            if (calibrationState === 'wait_p1' || calibrationState === 'wait_p2') {
+                const snappedX = Math.round(worldP.x);
+                const snappedZ = Math.round(worldP.z);
+                handleCalibrationClick(snappedX, snappedZ, 0, 0); // Pixel logic handled inside
+                return;
+            }
+
+            if (creatorMode) {
+                let clickedWP = staticWaypoints.find(wp => { const s = worldToScreen(wp.x, wp.z); return Math.hypot(s.x - x, s.y - y) < 15; });
+                if (clickedWP) {
+                    deleteWaypoint(clickedWP.id);
+                } else {
+                    let nextId = 1000;
+                    for (let w of staticWaypoints) {
+                        if (w.id >= nextId) nextId = w.id + 1;
+                    }
+
+                    // Show Creator Menu Instead of spawning immediately
+                    pendingSpawnCoords = { x: Math.round(worldP.x), z: Math.round(worldP.z), id: nextId };
+                    let menu = document.getElementById('creator-spawn-menu');
+                    menu.style.left = x + 'px';
+                    menu.style.top = y + 'px';
+                    menu.classList.remove('hidden');
+
+                    // Reset slider to default
+                    document.getElementById('wp-y-slider').value = -59;
+                    document.getElementById('wp-y-display').innerText = '-59';
+                }
+                return; // Stop other interactions while in creator mode
+            }
+
+            // Click Ripple Animation
+            visualEffects.push({ type: 'ripple', wx: worldP.x, wz: worldP.z, progress: 0, speed: 0.05, maxRadius: 20, r: 92, g: 173, b: 255 });
+
+            // Waypoint Hit Test (prioritized over planes if routing)
+            if (selectedPlane) {
+                let clickedWP = staticWaypoints.find(wp => { const s = worldToScreen(wp.x, wp.z); return Math.hypot(s.x - x, s.y - y) < 15; });
+                if (clickedWP) {
+                    if (isClearingRoute) {
+                        buildRoute = [];
+                        routeAnimProgress = 0;
+                        isClearingRoute = false;
+                    }
+                    buildRoute.push(clickedWP.id);
+                    visualEffects.push({ type: 'ripple', wx: clickedWP.x, wz: clickedWP.z, progress: 0, speed: 0.04, maxRadius: 30, r: 68, g: 255, b: 68 });
+                    updateRouteBox();
+                    return;
+                }
+            }
+
+            // Plane Dot Hit Test
+            let clickedPlane = planes.find(p => { const s = worldToScreen(p.currentX, p.currentZ); return Math.hypot(s.x - x, s.y - y) < 30; });
+            if (clickedPlane) { selectPlane(clickedPlane.id); return; }
+
+            // Nothing was hit — deselect
+            if (selectedPlane) {
+                selectedPlane = null;
+                clearRoute(true);
+                document.getElementById('control-panel').classList.add('hidden');
+                let tp = document.getElementById('time-tracker-panel');
+                if (tp) { tp.classList.add('hidden'); setTimeout(() => tp.style.display = 'none', 400); }
+                updateStripBay();
+                document.body.classList.remove('mobile-focus-mode');
+            }
+        }
+
+        function worldToScreen(wx, wz) { return { x: (cameraX - wx) * zoomLevel + canvas.width / 2, y: (cameraZ - wz) * zoomLevel + canvas.height / 2 }; }
+        function screenToWorld(sx, sy) { return { x: cameraX - (sx - canvas.width / 2) / zoomLevel, z: cameraZ - (sy - canvas.height / 2) / zoomLevel }; }
+        function getWaypointById(id) { return staticWaypoints.find(wp => String(wp.id) === String(id)); }
+        function isOffScreen(p) { return (p.x < -20 || p.x > canvas.width + 20 || p.y < -20 || p.y > canvas.height + 20); }
+        function selectPlane(id) {
+            selectedPlane = id;
+            clearRoute(true); // instant clear
+            killSingleClicks = 0;
+            let ksBtn = document.getElementById('btn-kill-single');
+            if (ksBtn) { ksBtn.style.backgroundColor = ''; ksBtn.innerText = 'KILL'; }
+            document.getElementById('control-panel').classList.remove('hidden');
+            if (window.innerWidth <= 950) document.body.classList.add('mobile-focus-mode');
+        }
+        async function saveUserData(type) {
+            if (!selectedPlane) return;
+            let payload = { plane_id: selectedPlane };
+            if (type === 'gate') payload.gate = document.getElementById('standNum').value;
+            if (type === 'callsign') payload.custom_callsign = document.getElementById('visualName').value;
+            if (type === 'type') payload.type = document.getElementById('editType').value;
+            if (type === 'squawk') payload.squawk = document.getElementById('editSquawk').value;
+            if (type === 'route') payload.route_text = document.getElementById('editRoute').value;
+            if (type === 'sid') payload.sid = document.getElementById('editSid').value;
+            if (type === 'airways') payload.airways = document.getElementById('editAirways').value;
+            if (type === 'pfl') payload.pfl = document.getElementById('editPfl').value;
+            await fetch('/update_plane_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        }
+
+        async function setCategory(cat, dropPid = null) {
+            let targetPid = (typeof dropPid === 'string') ? dropPid : selectedPlane;
+            if (!targetPid) return;
+            let payload = { plane_id: targetPid, category: cat };
+            let p = planes.find(x => x.id === targetPid);
+            if (p) {
+                p.category = cat;
+                if (cat !== 'departure' && cat !== 'local') p.started_up = false;
+            }
+            await fetch('/update_plane_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            updateStripBay(); // Trigger instant view visual sync
+        }
+
+        function handleDrop(event, cat) {
+            event.preventDefault();
+            let pid = event.dataTransfer.getData('text/plain');
+            if (pid) {
+                setCategory(cat, pid);
+            }
+        }
+
+        async function toggleStartup() {
+            if (!selectedPlane) return;
+            let p = planes.find(x => x.id === selectedPlane);
+            if (!p) return;
+            let newState = !p.started_up;
+            let payload = { plane_id: selectedPlane, started_up: newState };
+            p.started_up = newState;
+            await fetch('/update_plane_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            updateStripBay(); // Trigger instant view visual sync
+        }
+        function updateSpeedLabel(val) {
+            let spd = parseInt(val);
+            let speedNames = {
+                1: "SLOW (0.5x)",
+                2: "NORMAL (1.0x)",
+                3: "FAST (1.5x)",
+                4: "TURBO (2.0x)"
+            };
+            let labelEl = document.getElementById('speed-display-label');
+            if (labelEl) {
+                labelEl.innerText = speedNames[spd] || "NORMAL (1.0x)";
+            }
+        }
+        
+        async function setPlaneSpeed(spd) {
+            if (!selectedPlane) return;
+            let payload = { plane_id: selectedPlane, speed: spd };
+            let p = planes.find(x => x.id === selectedPlane);
+            if (p) {
+                p.speed = spd;
+            }
+            await fetch('/update_plane_data', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            // Update UI feedback immediately
+            updateSpeedLabel(spd);
+            let slider = document.getElementById('speedSlider');
+            if (slider) slider.value = spd;
+        }
+        function updateRouteBox() { /* no-op, counter removed */ }
+        function clearRoute(instant = false) {
+            if (instant || buildRoute.length === 0) {
+                buildRoute = [];
+                routeAnimProgress = 0;
+                isClearingRoute = false;
+                updateRouteBox();
+            } else {
+                isClearingRoute = true;
+            }
+        }
+        async function setStatus(mode) {
+            if (!selectedPlane) return;
+            if (buildRoute.length > 0) {
+                showNotif("UPLOADING ROUTE...");
+                await fetch('/send_route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plane_tag: selectedPlane, route: buildRoute.join(', ') }) });
+                clearRoute(true);
+            }
+            await fetch('/set_status', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plane_tag: selectedPlane, mode: mode }) });
+            showNotif("DISPATCHED: " + mode.toUpperCase());
+        }
+        async function toggleSystemPause() { let newState = !isPaused; await fetch('/toggle_pause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paused: newState }) }); showNotif(newState ? "SYSTEM HALTED" : "SYSTEM RESUMED"); }
+
+        function toggleStripBay() {
+            document.getElementById('strip-bay').classList.toggle('hidden');
+        }
+        async function parkVehicle() {
+            if (!selectedPlane) return;
+            let p = planes.find(x => x.id === selectedPlane);
+            if (!p || p.entity_type !== 'automobile') return;
+
+            let targetID = null;
+            let name = p.custom_callsign || p.callsign;
+            if (name === 'TRUCK') targetID = "484757";
+            else if (name === 'FOLLOWME') targetID = "484756";
+
+            if (!targetID) {
+                showNotif("UNKNOWN PARK DESTINATION");
+                return;
+            }
+
+            const wp = getWaypointById(targetID);
+            if (!wp) {
+                showNotif("PARKING WAYPOINT NOT FOUND");
+                return;
+            }
+
+            await fetch('/teleport_plane', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plane_tag: selectedPlane, wp_id: targetID }) });
+
+            // Snap plane position instantly (bypass smooth interpolation)
+            visualEffects.push({ type: 'puff', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.04, maxRadius: 40, r: 180, g: 80, b: 255 });
+            visualEffects.push({ type: 'ripple', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.03, maxRadius: 60, r: 160, g: 60, b: 255 });
+
+            p.currentX = wp.x; p.currentZ = wp.z;
+            p.targetX = wp.x; p.targetZ = wp.z;
+
+            visualEffects.push({ type: 'puff', wx: wp.x, wz: wp.z, progress: 0, speed: 0.03, maxRadius: 60, r: 200, g: 100, b: 255 });
+            visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.025, maxRadius: 80, r: 180, g: 0, b: 255 });
+            visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.015, maxRadius: 120, r: 140, g: 50, b: 220 });
+
+            showNotif("PARKING...");
+            clearRoute(true);
+        }
+
+        async function teleportToLast() {
+            if (!selectedPlane || buildRoute.length === 0) { showNotif("SELECT POINT FIRST"); return; }
+            const targetID = buildRoute[buildRoute.length - 1];
+            const wp = getWaypointById(targetID);
+            await fetch('/teleport_plane', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plane_tag: selectedPlane, wp_id: targetID }) });
+
+            // Snap plane position instantly (bypass smooth interpolation)
+            let p = planes.find(x => x.id === selectedPlane);
+            if (p && wp) {
+                // Purple origin puff (where it was)
+                visualEffects.push({ type: 'puff', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.04, maxRadius: 40, r: 180, g: 80, b: 255 });
+                visualEffects.push({ type: 'ripple', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.03, maxRadius: 60, r: 160, g: 60, b: 255 });
+
+                // Instantly snap position
+                p.currentX = wp.x; p.currentZ = wp.z;
+                p.targetX = wp.x; p.targetZ = wp.z;
+
+                // Purple destination effects
+                visualEffects.push({ type: 'puff', wx: wp.x, wz: wp.z, progress: 0, speed: 0.03, maxRadius: 60, r: 200, g: 100, b: 255 });
+                visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.025, maxRadius: 80, r: 180, g: 0, b: 255 });
+                visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.015, maxRadius: 120, r: 140, g: 50, b: 220 });
+            }
+
+            showNotif("TELEPORTING..."); clearRoute(true);
+        }
+        function showNotif(msg) { const n = document.getElementById('notif'); n.innerText = msg; n.style.opacity = 1; setTimeout(() => n.style.opacity = 0, 2000); }
+
+        async function spawnWaypoint(x, z, wpId, y = -59) {
+            showNotif(`SPAWNING NODE ${wpId}...`);
+            await fetch('/spawn_waypoint', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x: x, y: y, z: z, wp_id: wpId })
+            });
+        }
+
+        function confirmCreatorSpawn() {
+            if (!pendingSpawnCoords || !pendingSpawnCoords.id) return;
+            const y = parseInt(document.getElementById('wp-y-slider').value, 10);
+            spawnWaypoint(pendingSpawnCoords.x, pendingSpawnCoords.z, pendingSpawnCoords.id, y);
+            staticWaypoints.push({ id: pendingSpawnCoords.id, x: pendingSpawnCoords.x, z: pendingSpawnCoords.z }); // Front-end visualizer does not use Y currently
+
+            // Visual spawn effects
+            visualEffects.push({ type: 'spawnLine', wx: pendingSpawnCoords.x, wz: pendingSpawnCoords.z, progress: 0, speed: 0.05, r: 100, g: 255, b: 100 });
+            visualEffects.push({ type: 'ripple', wx: pendingSpawnCoords.x, wz: pendingSpawnCoords.z, progress: 0, speed: 0.03, maxRadius: 60, r: 100, g: 255, b: 100 });
+
+            document.getElementById('creator-spawn-menu').classList.add('hidden');
+            pendingSpawnCoords = null;
+        }
+
+        function cancelCreatorSpawn() {
+            document.getElementById('creator-spawn-menu').classList.add('hidden');
+            pendingSpawnCoords = null;
+        }
+
+        async function deleteWaypoint(wpId) {
+            showNotif(`DESTROYING NODE ${wpId}...`);
+            staticWaypoints = staticWaypoints.filter(wp => wp.id !== wpId);
+            buildRoute = buildRoute.filter(id => id !== wpId);
+            await fetch('/delete_waypoint', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ wp_id: wpId })
+            });
+        }
+
+        async function spawnPlane(planeType, x, z, flightRules = 'VFR') {
+            const notif = document.getElementById('notif');
+            notif.innerText = `SPAWNING ${planeType.toUpperCase().replace('SIMPLEPLANES:', '')}...`;
+            notif.style.opacity = 1;
+            setTimeout(() => { notif.style.opacity = 0; }, 2000);
+
+            visualEffects.push({ type: 'spawn', wx: x, wz: z, progress: 0, speed: 0.02, maxRadius: 50, r: 0, g: 255, b: 255 });
+
+            let ghostId = "GHOST_" + Date.now();
+            ghostPlanes.push({ id: ghostId, type: planeType, x: x, z: z, spawnTime: Date.now() });
+
+            await fetch('/spawn_plane', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x: x, z: z, type: planeType, flight_rules: flightRules })
+            });
+        }
+
+        function executeAltSpawn(planeType, flightRules = 'VFR') {
+            if (!pendingSpawnCoords) return;
+            spawnPlane(planeType, pendingSpawnCoords.x, pendingSpawnCoords.z, flightRules);
+            document.getElementById('alt-spawn-menu').classList.add('hidden');
+            pendingSpawnCoords = null;
+        }
+
+        async function executeCrash() {
+            if (!pendingSpawnCoords) return;
+            showNotif("CRASH INITIATED...");
+            fetch('/trigger_crash', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ x: pendingSpawnCoords.x, z: pendingSpawnCoords.z })
+            });
+            document.getElementById('alt-spawn-menu').classList.add('hidden');
+            pendingSpawnCoords = null;
+        }
+
+        let untrackSingleClicks = 0;
+        let untrackSingleTimeout = null;
+
+        async function untrackSelectedPlane(btn) {
+            if (!selectedPlane) return;
+            untrackSingleClicks++;
+            if (untrackSingleClicks >= 2) {
+                showNotif("UNTRACKING AIRCRAFT...");
+                await fetch('/untrack_plane', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plane_tag: selectedPlane }) });
+                document.getElementById('control-panel').classList.add('hidden');
+                let tp = document.getElementById('time-tracker-panel');
+                if (tp) { tp.classList.add('hidden'); setTimeout(() => tp.style.display = 'none', 400); }
+                selectedPlane = null;
+                untrackSingleClicks = 0;
+                btn.style.background = 'linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(50, 50, 50, 0.6))';
+                btn.style.color = '#aaa';
+                btn.style.borderColor = '#888';
+                btn.innerText = 'UNTRACK';
+                return;
+            }
+            btn.style.background = 'linear-gradient(135deg, rgba(120, 80, 20, 0.6), rgba(80, 50, 10, 0.8))';
+            btn.style.color = '#ffcc00';
+            btn.style.borderColor = '#cc8800';
+            btn.innerText = 'CONFIRM';
+            clearTimeout(untrackSingleTimeout);
+            untrackSingleTimeout = setTimeout(() => {
+                untrackSingleClicks = 0;
+                btn.style.background = 'linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(50, 50, 50, 0.6))';
+                btn.style.color = '#aaa';
+                btn.style.borderColor = '#888';
+                btn.innerText = 'UNTRACK';
+            }, 3000);
+        }
+
+        async function killSelectedPlane(btn) {
+            if (!selectedPlane) return;
+            killSingleClicks++;
+            if (killSingleClicks >= 2) {
+                showNotif("KILLING AIRCRAFT...");
+                await fetch('/kill_plane', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plane_tag: selectedPlane }) });
+                document.getElementById('control-panel').classList.add('hidden');
+                let tp = document.getElementById('time-tracker-panel');
+                if (tp) { tp.classList.add('hidden'); setTimeout(() => tp.style.display = 'none', 400); }
+                selectedPlane = null;
+                killSingleClicks = 0;
+                btn.style.backgroundColor = '';
+                btn.innerText = 'KILL';
+                return;
+            }
+            btn.style.backgroundColor = '#600';
+            btn.innerText = 'CONFIRM';
+            clearTimeout(killSingleTimeout);
+            killSingleTimeout = setTimeout(() => { killSingleClicks = 0; btn.style.backgroundColor = ''; btn.innerText = 'KILL'; }, 3000);
+        }
+
+        async function killAllPlanes(btn) {
+            killAllClicks++;
+            if (killAllClicks >= 3) {
+                showNotif("KILLING ALL AIRCRAFT...");
+                await fetch('/kill_all', { method: 'POST' });
+                killAllClicks = 0;
+                btn.style.backgroundColor = '#844';
+                btn.innerText = 'KILL ALL AIRCRAFT';
+                return;
+            }
+            if (killAllClicks === 1) {
+                btn.style.backgroundColor = '#622';
+                btn.innerText = 'ARE YOU SURE?';
+            }
+            if (killAllClicks === 2) {
+                btn.style.backgroundColor = '#400';
+                btn.innerText = 'ARE YOU REALLY SURE?';
+            }
+
+            clearTimeout(killAllTimeout);
+            killAllTimeout = setTimeout(() => { killAllClicks = 0; btn.style.backgroundColor = '#844'; btn.innerText = 'KILL ALL AIRCRAFT'; }, 3000);
+        }
+
+        async function setWeather(type) {
+            showNotif("CHANGING WEATHER...");
+            await fetch('/set_weather', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: type })
+            });
+        }
+
+        // --- AUTOMOBILE TYPE SELECTION ---
+        async function setAutomobileType(vehicleType) {
+            if (!selectedPlane) return;
+            await fetch('/set_automobile_type', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ plane_id: selectedPlane, vehicle_type: vehicleType })
+            });
+            showNotif('VEHICLE SET: ' + vehicleType);
+
+            // Update local state immediately
+            let p = planes.find(x => x.id === selectedPlane);
+            if (p) {
+                p.custom_callsign = vehicleType;
+                p.callsign = vehicleType;
+            }
+        }
+
+        function toggleWidgetRain(isRaining) {
+            document.querySelectorAll('.widget:not(.hidden)').forEach(w => {
+                let overlay = w.querySelector('.rain-drip-overlay');
+                if (isRaining) {
+                    if (!overlay) {
+                        overlay = document.createElement('div');
+                        overlay.className = 'rain-drip-overlay';
+                        // Create random streaks
+                        for (let i = 0; i < 8; i++) {
+                            let streak = document.createElement('div');
+                            streak.className = 'streak';
+                            streak.style.left = (5 + Math.random() * 90) + '%';
+                            streak.style.height = (30 + Math.random() * 60) + 'px';
+                            streak.style.animationDuration = (3 + Math.random() * 4) + 's';
+                            streak.style.animationDelay = (Math.random() * 5) + 's';
+                            overlay.appendChild(streak);
+                        }
+                        // Create random droplets
+                        for (let i = 0; i < 6; i++) {
+                            let drop = document.createElement('div');
+                            drop.className = 'droplet';
+                            drop.style.left = (5 + Math.random() * 90) + '%';
+                            drop.style.top = (Math.random() * 30) + '%';
+                            drop.style.animationDuration = (6 + Math.random() * 8) + 's';
+                            drop.style.animationDelay = (Math.random() * 6) + 's';
+                            overlay.appendChild(drop);
+                        }
+                        w.appendChild(overlay);
+                        // Trigger fade-in
+                        requestAnimationFrame(() => overlay.classList.add('active'));
+                    }
+                } else {
+                    if (overlay) {
+                        overlay.classList.remove('active');
+                        setTimeout(() => overlay.remove(), 1500);
+                    }
+                }
+            });
+        }
+
+        init();
+
+        // Start Zulu Clock
+        setInterval(() => {
+            const display = document.getElementById("zulu-clock-display");
+            if (display) {
+                const now = new Date();
+                const h = String(now.getUTCHours()).padStart(2, '0');
+                const m = String(now.getUTCMinutes()).padStart(2, '0');
+                const s = String(now.getUTCSeconds()).padStart(2, '0');
+                display.innerText = `${h}:${m}:${s}`;
+            }
+        }, 1000);
+
+        // Initial tick right away to avoid --:--:-- flash
+        (function initialZuluTick() {
+            const display = document.getElementById("zulu-clock-display");
+            if (!display) return;
+            const now = new Date();
+            display.innerText = `${String(now.getUTCHours()).padStart(2, '0')}:${String(now.getUTCMinutes()).padStart(2, '0')}:${String(now.getUTCSeconds()).padStart(2, '0')}`;
+        })();
+
+        // toggle Awos embedded modal
+        function toggleAwosModal() {
+            const modal = document.getElementById('awos-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.style.transform = 'translate(-50%, -50%) scale(0.85)';
+            } else {
+                modal.classList.add('hidden');
+                modal.style.transform = 'translate(-50%, -50%) scale(0.70)';
+            }
+        }
+    </script>
+</body>
+
+</html>
