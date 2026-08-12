@@ -40,7 +40,7 @@ app = Flask(__name__)
 # --- CONFIGURATION ---
 RCON_IP = 'localhost' 
 RCON_PORT = 25575
-RCON_PASS = 'purna'
+RCON_PASS = 'password'
 
 # --- GLOBAL MEMORY ---
 AWOS_STATE = {
