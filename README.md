@@ -19,7 +19,6 @@ A visual Aerodrome Control training tool to be used with Minecraft, it is fully 
 - Flask
 - `mcrcon`
 - Minecraft 1.20.1 (other versions not tried, might work)
-- The datapack installed in your world file.
 
 ---
 
@@ -28,7 +27,7 @@ A visual Aerodrome Control training tool to be used with Minecraft, it is fully 
 - [SimplePlanes](https://www.curseforge.com/minecraft/mc-mods/simpleplanes) mod to spawn planes.
 - [Automobility](https://www.curseforge.com/minecraft/mc-mods/automobility) and [RIAutomobility](https://www.curseforge.com/minecraft/mc-mods/riautomobility) mods for ground vehicles.
 - [BlueMap](https://www.curseforge.com/minecraft/mc-mods/bluemap) if you want to use the VR version of the site.
-- [Xaero's World Map](https://www.curseforge.com/minecraft/mc-mods/xaeros-world-map) to use OpenPAC and to get the map image onto the radar.
+- [Xaero's World Map](https://www.curseforge.com/minecraft/mc-mods/xaeros-world-map) to get the map image onto the radar.
 
 ---
 
