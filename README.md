@@ -1,6 +1,6 @@
-# ✈️ ATC Radar & AWOS System
+# ATC Radar & AWOS System
 
-A visual Aerodrome Controller training tool to be used with Minecraft, it is fully ai-made, i am NOT a programmer.
+A visual Aerodrome Control training tool to be used with Minecraft, it is fully ai-made, i am NOT a programmer.
 
 ---
 
@@ -26,7 +26,7 @@ A visual Aerodrome Controller training tool to be used with Minecraft, it is ful
 ## Required Mods
 
 - [SimplePlanes](https://www.curseforge.com/minecraft/mc-mods/simpleplanes) mod to spawn planes.
-- [Automobility and RIAutomobility](https://www.curseforge.com/minecraft/mc-mods/automobility), (https://www.curseforge.com/minecraft/mc-mods/riautomobility) mods for ground vehicles.
+- [Automobility](https://www.curseforge.com/minecraft/mc-mods/automobility) and [RIAutomobility](https://www.curseforge.com/minecraft/mc-mods/riautomobility) mods for ground vehicles.
 - [BlueMap](https://www.curseforge.com/minecraft/mc-mods/bluemap) if you want to use the VR version of the site.
 - [Xaero's World Map](https://www.curseforge.com/minecraft/mc-mods/xaeros-world-map) to use OpenPAC and to get the map image onto the radar.
 
@@ -40,31 +40,27 @@ A visual Aerodrome Controller training tool to be used with Minecraft, it is ful
 
 ---
 
-## 🛠️ Getting Started
+## Getting Started
 
 1. **Install dependencies:**
    ```bash
    pip install flask mcrcon
    ```
-2. **Make a superflat world**: **IMPORTANT** — it HAS to be superflat for the datapack to work (hardcoded ground level at `y=-59`).
+2. **Make a superflat world**: **IMPORTANT**, it HAS to be superflat for the datapack to work (hardcoded ground level at `y=-59`).
 3. **Install the datapack**: Copy/extract `datapack.zip` into your server's `world/datapacks/` directory.
-4. **Configure `server.properties`**: Set `enable-rcon=true` and set `rcon.password` to your desired password.
+4. **Configure `server.properties`**: Set `enable-rcon=true` and set `rcon-password` to your desired password.
 5. **Configure `atc.py`**: Update line 41 with your server's RCON IP, port, and password.
-6. **Forceload chunks**: In your Minecraft server, forceload every chunk where planes will operate (e.g. using OpenPAC).
+6. **Forceload chunks**: In your Minecraft server, forceload every chunk where planes will operate (e.g. using OpenPAC). If a plane leaves loaded chunks it WILL disappear
 7. **Launch the radar server:**
    - **Standard HTTP mode**:
      ```bash
      python atc.py
      ```
-   - **HTTPS mode** (for Meta Quest / WebXR browser):
+   - **HTTPS mode** (for Meta Quest browser):
      ```bash
      python atc.py --https
      ```
-8. **Access the web dashboard**:
-   - **Radar Display**: `http://localhost:5000/`
-   - **Weather Display (AWOS)**: `http://localhost:5000/awos`
-   - **VR Display**: `http://localhost:5000/vr`
-9. **Set up Minecraft Command Blocks in your world:**
+8. **Set up Minecraft Command Blocks in your world:**
    Place **Command Blocks** in your world running the following 8 commands:
 
    #### 1. Entity Auto-Trackers (Repeating Command Blocks, Always Active)
@@ -87,7 +83,10 @@ A visual Aerodrome Controller training tool to be used with Minecraft, it is ful
      ```minecraft
      execute as @e[tag=waypoint] store result score @s wp_z run data get entity @s Pos[2]
      ```
-
+9. **Access the web dashboard**:
+   - **Radar Display**: `http://localhost:5000/`
+   - **Weather Display (AWOS)**: `http://localhost:5000/awos`
+   - **VR Display**: `http://localhost:5000/vr`
 10. **Configure generator settings** in the radar UI settings menu.
 11. **Export and upload `map.png`** using Xaero's World Map.
 12. **Calibrate your radar map** using the **CALIBRATION** button by picking two known in-game coordinates.
