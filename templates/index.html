@@ -1578,7 +1578,6 @@
             <div class="btn-row">
                 <button class="btn-green" onclick="setStatus('taxi')">TAXI</button>
                 <button id="btn-fly" class="btn-blue" onclick="setStatus('fly')">FLY</button>
-            <button id="btn-park" class="btn-tp" style="display:none;" onclick="parkVehicle()">PARK</button>
                 <button class="btn-yellow" onclick="setStatus('stop')">HOLD</button>
                 <button id="btn-untrack-single" class="btn-action"
                     style="background: linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(50, 50, 50, 0.6)); border-color: #888; color: #aaa;"
@@ -2582,8 +2581,6 @@
             const autoSelect = document.getElementById('panel-auto-select');
             const btnRow = document.querySelector('#control-panel > .btn-row');
 
-            const btnPark = document.getElementById('btn-park');
-
             const timePanel = document.getElementById('time-tracker-panel');
             if (isUndefinedAuto || isGroundVeh) {
                 timePanel.classList.add('hidden');
@@ -2634,7 +2631,6 @@
                 if (btnRow) btnRow.style.display = 'none';
                 const btnFly = document.getElementById('btn-fly');
                 if (btnFly) btnFly.style.display = 'none';
-                if (btnPark) btnPark.style.display = 'none';
             } else if (isGroundVeh) {
                 autoSelect.style.display = 'none';
                 if (btnRow) btnRow.style.display = 'flex';
@@ -2644,7 +2640,6 @@
                 routeTools.style.display = 'block';
                 const btnFly = document.getElementById('btn-fly');
                 if (btnFly) btnFly.style.display = 'none';
-                if (btnPark) btnPark.style.display = '';
             } else {
                 autoSelect.style.display = 'none';
                 if (btnRow) btnRow.style.display = 'flex';
@@ -2654,7 +2649,6 @@
                 routeTools.style.display = 'block';
                 const btnFly = document.getElementById('btn-fly');
                 if (btnFly) btnFly.style.display = '';
-                if (btnPark) btnPark.style.display = 'none';
                 document.getElementById('fs-type').innerText = plane.type || "UNK";
                 document.getElementById('fs-squawk').innerText = plane.squawk || "1200";
                 document.getElementById('fs-sid').innerText = plane.sid || "--";
@@ -3623,43 +3617,7 @@
         function toggleStripBay() {
             document.getElementById('strip-bay').classList.toggle('hidden');
         }
-        async function parkVehicle() {
-            if (!selectedPlane) return;
-            let p = planes.find(x => x.id === selectedPlane);
-            if (!p || p.entity_type !== 'automobile') return;
 
-            let targetID = null;
-            let name = p.custom_callsign || p.callsign;
-            if (name === 'TRUCK') targetID = "484757";
-            else if (name === 'FOLLOWME') targetID = "484756";
-
-            if (!targetID) {
-                showNotif("UNKNOWN PARK DESTINATION");
-                return;
-            }
-
-            const wp = getWaypointById(targetID);
-            if (!wp) {
-                showNotif("PARKING WAYPOINT NOT FOUND");
-                return;
-            }
-
-            await fetch('/teleport_plane', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plane_tag: selectedPlane, wp_id: targetID }) });
-
-            // Snap plane position instantly (bypass smooth interpolation)
-            visualEffects.push({ type: 'puff', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.04, maxRadius: 40, r: 180, g: 80, b: 255 });
-            visualEffects.push({ type: 'ripple', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.03, maxRadius: 60, r: 160, g: 60, b: 255 });
-
-            p.currentX = wp.x; p.currentZ = wp.z;
-            p.targetX = wp.x; p.targetZ = wp.z;
-
-            visualEffects.push({ type: 'puff', wx: wp.x, wz: wp.z, progress: 0, speed: 0.03, maxRadius: 60, r: 200, g: 100, b: 255 });
-            visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.025, maxRadius: 80, r: 180, g: 0, b: 255 });
-            visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.015, maxRadius: 120, r: 140, g: 50, b: 220 });
-
-            showNotif("PARKING...");
-            clearRoute(true);
-        }
 
         async function teleportToLast() {
             if (!selectedPlane || buildRoute.length === 0) { showNotif("SELECT POINT FIRST"); return; }
