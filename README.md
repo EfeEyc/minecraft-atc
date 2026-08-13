@@ -67,7 +67,7 @@ A visual Aerodrome Control training tool to be used with Minecraft, it is fully 
    - **Large Plane**: `tag @e[type=simpleplanes:large_plane,tag=!tracked] add tracked`
    - **Helicopter**: `tag @e[type=simpleplanes:helicopter,tag=!tracked] add tracked`
    - **Automobiles / Cars**: `tag @e[type=automobility:automobile,tag=!tracked] add tracked`
-   - **Biplane**: `tag @e[type=immersive_aircraft:biplane,tag=!tracked] add tracked`
+
 
    #### 2. Automatic ID & Telemetry (Repeating Command Blocks, Always Active)
    - **Auto-Assign `plane_id` Counter**:
