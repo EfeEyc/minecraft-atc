@@ -1,22 +1,69 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="Aerodrome Control Radar & AWOS Training Interface">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>Kule itfaiye olayı</title>
+    <title>ATC Radar — Aerodrome Control</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=JetBrains+Mono:wght@700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap"
         rel="stylesheet">
     <style>
+        :root {
+            --bg-canvas: #09090b;
+            --bg-shell: rgba(18, 18, 20, 0.90);
+            --bg-shell-solid: #121214;
+            --bg-card: #1a1a1d;
+            --bg-card-hover: #222226;
+            --bg-well: #0e0e10;
+            --bg-control: #242428;
+            --bg-control-hover: #2e2e34;
+            --fg-primary: #f5f5f7;
+            --fg-secondary: #a1a0ab;
+            --fg-muted: #6e6d78;
+            --accent: #fc4c01;
+            --accent-hover: #e54400;
+            --accent-soft: rgba(252, 76, 1, 0.14);
+            --green: #30d158;
+            --green-soft: rgba(48, 209, 88, 0.14);
+            --gold: #f2c14e;
+            --amber: #ff9f0a;
+            --blue: #4da3ff;
+            --red: #ff453a;
+            --border-hairline: rgba(255, 255, 255, 0.075);
+            --border-subtle: rgba(255, 255, 255, 0.055);
+            --border-strong: rgba(255, 255, 255, 0.14);
+            --shadow-apple:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.075),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+                inset 0 -1px 0 0 rgba(0, 0, 0, 0.45),
+                0 1px 2px rgba(0, 0, 0, 0.45),
+                0 8px 24px rgba(0, 0, 0, 0.45);
+            --shadow-control:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+                0 1px 2px rgba(0, 0, 0, 0.35);
+            --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+            --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+        }
+
+        ::selection {
+            background-color: rgba(252, 76, 1, 0.16);
+            color: #fc4c01;
+        }
+
         html,
         body {
             width: 100vw;
             height: 100vh;
-            /* Use dynamic viewport height if supported to fix address bar/notch issues */
             height: 100dvh;
             margin: 0;
             padding: 0;
@@ -25,12 +72,15 @@
             position: fixed;
             -webkit-user-select: none;
             user-select: none;
-            background-color: #050505;
+            background-color: var(--bg-canvas);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         body {
-            font-family: 'IBM Plex Sans', sans-serif;
-            color: #e0e0e0;
+            font-family: var(--font-sans);
+            color: var(--fg-primary);
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
         }
 
         #radar {
@@ -40,23 +90,26 @@
             cursor: crosshair;
         }
 
-        /* WIDGETS */
+        /* RARE UI TACTILE SHELLS (WIDGETS) */
         .widget {
             position: absolute;
-            background: rgba(15, 20, 25, 0.7);
-            border: 1px solid rgba(100, 150, 200, 0.25);
-            border-top: 1px solid rgba(180, 220, 255, 0.25);
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            background: var(--bg-shell);
+            border: none;
+            border-radius: 22px;
+            padding: 18px;
+            box-shadow: var(--shadow-apple);
+            backdrop-filter: blur(22px) saturate(140%);
+            -webkit-backdrop-filter: blur(22px) saturate(140%);
             z-index: 10;
             overflow: hidden;
-            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), left 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 1s ease, border-color 1s ease, box-shadow 1s ease, filter 1s ease;
+            transition:
+                opacity 0.35s var(--ease-spring),
+                transform 0.35s var(--ease-spring),
+                left 0.35s var(--ease-spring),
+                background 0.4s ease,
+                box-shadow 0.3s ease;
         }
 
-        /* All interactive content sits above overlays */
         .widget>*:not(.rain-drip-overlay):not(canvas),
         .widget button,
         .widget input,
@@ -66,69 +119,47 @@
             z-index: 5;
         }
 
-        /* Clear weather: brighter, sunlit glass */
-        .weather-clear .widget {
-            background: rgba(25, 30, 40, 0.6);
-            border: 1px solid rgba(140, 190, 255, 0.35);
-            border-top: 1px solid rgba(220, 240, 255, 0.45);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 60px rgba(100, 170, 255, 0.05);
-            filter: brightness(1.15);
-        }
-
-        /* Sun reflection glow from top-left */
+        /* Subtle RareUI top radial catchlight */
         .widget::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: radial-gradient(ellipse at 15% 10%,
-                    rgba(255, 255, 220, 0.12) 0%,
-                    rgba(255, 255, 255, 0.06) 25%,
-                    transparent 60%);
-            opacity: 0;
+            inset: 0;
+            background: radial-gradient(120% 75% at 50% -10%, rgba(255, 255, 255, 0.055), transparent 60%);
+            opacity: 0.75;
             pointer-events: none;
             z-index: 1;
-            transition: opacity 1s ease;
+            transition: opacity 0.6s ease;
         }
 
-        /* Sun glow visible in clear weather */
+        .weather-clear .widget {
+            background: rgba(22, 22, 25, 0.90);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.095),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.13),
+                inset 0 -1px 0 0 rgba(0, 0, 0, 0.45),
+                0 2px 6px rgba(0, 0, 0, 0.35),
+                0 12px 32px rgba(0, 0, 0, 0.45);
+        }
+
         .weather-clear .widget::before {
             opacity: 1;
         }
 
-        /* Top edge highlight glow */
         .widget::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 10%;
-            width: 80%;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(180, 220, 255, 0.3), transparent);
-            pointer-events: none;
-            z-index: 1;
-            transition: background 1s ease, height 1s ease;
-        }
-
-        /* Brighter top line in clear weather */
-        .weather-clear .widget::after {
-            height: 2px;
-            background: linear-gradient(90deg, transparent 5%, rgba(255, 250, 200, 0.5) 30%, rgba(200, 230, 255, 0.4) 70%, transparent 95%);
+            display: none;
         }
 
         /* Widget Entry Animation */
         .widget.hidden {
             opacity: 0 !important;
-            transform: scale(0.95);
+            transform: scale(0.96);
             pointer-events: none !important;
         }
 
         #sidebar-left-container {
             position: absolute;
-            bottom: 40px;
-            left: 40px;
+            bottom: 32px;
+            left: 32px;
             width: 480px;
             display: flex;
             flex-direction: column;
@@ -145,115 +176,159 @@
             width: 100% !important;
             box-sizing: border-box;
             pointer-events: auto;
+            padding: 15px 16px;
         }
 
         #control-panel.hidden {
-            transform: translateX(-50px) scale(0.95);
+            transform: translateX(-32px) scale(0.97);
             opacity: 0 !important;
         }
 
+        /* TOP-LEFT SYSTEM PILL / CARD */
         #info-panel {
-            top: 40px;
-            left: 40px;
+            top: 32px;
+            left: 32px;
+            padding: 12px 16px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: transform 0.2s var(--ease-out-expo), box-shadow 0.2s var(--ease-out-expo), background 0.2s ease;
         }
 
         #info-panel:hover {
-            border-color: #fff;
+            background: rgba(26, 26, 30, 0.95);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.14),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.14),
+                0 4px 12px rgba(0, 0, 0, 0.45),
+                0 12px 28px rgba(0, 0, 0, 0.45);
         }
 
+        #info-panel:active {
+            transform: scale(0.98);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 9px;
+            border-radius: 9999px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            background: var(--green-soft);
+            color: var(--green);
+            box-shadow: inset 0 0 0 1px rgba(48, 209, 88, 0.22);
+            vertical-align: middle;
+            margin-left: 6px;
+            transition: all 0.25s var(--ease-out-expo);
+        }
+
+        .status-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* CONCENTRIC INNER FLIGHT STRIP (COMPACT 2-COL GRID) */
         .flight-strip {
-            background: linear-gradient(135deg, rgba(30, 40, 50, 0.7), rgba(15, 20, 25, 0.8));
-            border-left: 4px solid #5cadff;
-            border-right: 1px solid rgba(120, 160, 200, 0.15);
-            border-top: 1px solid rgba(120, 160, 200, 0.15);
-            border-bottom: 1px solid rgba(120, 160, 200, 0.15);
-            border-radius: 0 14px 14px 0;
-            padding: 10px;
-            margin-bottom: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            background: var(--bg-well);
+            border: none;
+            border-left: 3px solid var(--accent);
+            border-radius: 12px;
+            padding: 9px 12px;
+            margin-bottom: 8px;
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 4px 14px;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.055),
+                inset 0 2px 6px rgba(0, 0, 0, 0.4);
         }
 
         .fs-row {
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            padding: 2px 0;
             font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 0.5px;
-            color: #99aabb;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            color: var(--fg-muted);
+            gap: 6px;
         }
 
         .fs-val {
-            color: #fff;
-            font-weight: 700;
+            color: var(--fg-primary);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
         }
 
-        /* CHART SETTINGS */
+        /* CHART & ZOOM TOOLBAR */
         #chart-panel {
-            top: 40px;
-            right: 40px;
+            top: 32px;
+            right: 32px;
             width: 250px;
         }
 
         #zoom-panel {
-            top: 40px;
-            right: 40px;
+            top: 32px;
+            right: 32px;
             width: 292px;
-            /* Matches strip-bay width (250) + padding (40) + border (2) */
             box-sizing: border-box;
-            padding: 6px 6px 6px 16px;
+            padding: 8px 8px 8px 16px;
+            border-radius: 20px;
             display: flex;
             flex-direction: row;
-            gap: 6px;
+            gap: 8px;
             align-items: center;
             justify-content: space-between;
         }
 
         .btn-zoom {
-            width: 46px;
-            height: 46px;
+            width: 38px;
+            height: 38px;
+            flex: none;
             padding: 0;
             margin: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 28px;
-            font-weight: 300;
+            font-size: 20px;
+            font-weight: 500;
             line-height: 1;
-            border-radius: 14px;
-            background: linear-gradient(135deg, rgba(60, 80, 100, 0.4), rgba(30, 45, 60, 0.6));
-            border: 1px solid rgba(120, 160, 200, 0.2);
-            color: #e0e0e0;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 10px rgba(0, 0, 0, 0.2);
-            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            border-radius: 12px;
+            background: var(--bg-control);
+            border: none;
+            color: var(--fg-primary);
+            box-shadow: var(--shadow-control);
+            transition: background 0.18s ease, transform 0.18s var(--ease-out-expo), color 0.18s ease;
             text-transform: none;
         }
 
         .btn-zoom:hover {
-            background: linear-gradient(135deg, rgba(80, 110, 140, 0.6), rgba(40, 60, 80, 0.8));
-            border-color: rgba(180, 220, 255, 0.5);
-            color: #fff;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 16px rgba(0, 0, 0, 0.3), 0 0 12px rgba(92, 173, 255, 0.2);
-            transform: translateY(-2px);
+            background: var(--bg-control-hover);
+            color: #ffffff;
+            transform: none;
         }
 
         .btn-zoom:active {
-            background: rgba(92, 173, 255, 0.4) !important;
-            border-color: #5cadff !important;
-            color: #fff !important;
-            box-shadow: 0 0 20px rgba(92, 173, 255, 0.6) !important;
-            transform: scale(0.9) translateY(0) !important;
+            background: var(--accent) !important;
+            color: #ffffff !important;
+            transform: scale(0.94) !important;
         }
 
         /* STRIP BAY */
         #strip-bay {
-            top: 116px;
-            right: 40px;
-            width: 250px;
-            bottom: 40px;
+            top: 102px;
+            right: 32px;
+            width: 292px;
+            box-sizing: border-box;
+            bottom: 32px;
             display: flex;
             flex-direction: column;
         }
@@ -262,557 +337,574 @@
             overflow-y: auto;
             overflow-x: hidden;
             flex: 1;
-            padding-right: 10px;
+            padding-right: 6px;
+            scrollbar-width: thin;
+            scrollbar-color: #2c2c30 transparent;
         }
 
         #strip-container::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
 
         #strip-container::-webkit-scrollbar-track {
-            background: #111;
+            background: transparent;
         }
 
         #strip-container::-webkit-scrollbar-thumb {
-            background: #445566;
-            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
         }
 
         #cat-container-ground {
             overflow-y: auto;
             overflow-x: hidden;
-            max-height: 95px;
-            /* Fits approximately 2 ground strips */
-            padding-right: 10px;
+            max-height: 96px;
+            padding-right: 6px;
+            scrollbar-width: thin;
+            scrollbar-color: #2c2c30 transparent;
         }
 
         #cat-container-ground::-webkit-scrollbar {
-            width: 6px;
+            width: 4px;
         }
 
         #cat-container-ground::-webkit-scrollbar-track {
-            background: #111;
+            background: transparent;
         }
 
         #cat-container-ground::-webkit-scrollbar-thumb {
-            background: #445566;
-            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.14);
+            border-radius: 999px;
         }
 
+        /* TACTILE FLIGHT STRIPS IN SIDEBAR */
         .sidebar-strip {
-            background: linear-gradient(135deg, rgba(30, 40, 50, 0.6), rgba(15, 20, 25, 0.8));
-            border-left: 4px solid #556677;
-            border-right: 1px solid rgba(120, 160, 200, 0.15);
-            border-top: 1px solid rgba(120, 160, 200, 0.15);
-            border-bottom: 1px solid rgba(120, 160, 200, 0.15);
-            border-radius: 0 14px 14px 0;
-            padding: 10px;
+            position: relative;
+            background: var(--bg-card);
+            border: none;
+            border-left: 3px solid #52525b;
+            border-radius: 12px;
+            padding: 10px 12px;
             margin-bottom: 6px;
             cursor: pointer;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 4px 6px rgba(0, 0, 0, 0.2);
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, border-color 0.3s;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.055),
+                0 1px 2px rgba(0, 0, 0, 0.35),
+                0 3px 10px rgba(0, 0, 0, 0.22);
+            transition:
+                transform 0.22s var(--ease-out-expo),
+                background 0.18s ease,
+                box-shadow 0.22s var(--ease-out-expo),
+                border-color 0.18s ease;
         }
 
         .sidebar-strip:hover {
-            background: linear-gradient(135deg, rgba(50, 70, 90, 0.8), rgba(25, 35, 45, 0.9));
-            border-left-color: #00d2ff;
-            border-right: 1px solid rgba(180, 220, 255, 0.4);
-            border-top: 1px solid rgba(180, 220, 255, 0.4);
-            border-bottom: 1px solid rgba(180, 220, 255, 0.4);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(0, 210, 255, 0.2);
-            transform: translateX(4px);
+            background: var(--bg-card-hover);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.11),
+                0 2px 4px rgba(0, 0, 0, 0.4),
+                0 6px 16px rgba(0, 0, 0, 0.32);
+            transform: translateX(2px);
         }
 
         .sidebar-strip.active {
-            background: linear-gradient(135deg, rgba(60, 85, 115, 0.9), rgba(30, 45, 60, 1));
-            border-left-color: #5cadff !important;
-            border-right: 1px solid rgba(180, 220, 255, 0.6);
-            border-top: 1px solid rgba(180, 220, 255, 0.6);
-            border-bottom: 1px solid rgba(180, 220, 255, 0.6);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 8px 16px rgba(0, 0, 0, 0.4), 0 0 15px rgba(92, 173, 255, 0.4);
-            transform: translateX(4px);
+            box-shadow:
+                inset 0 0 0 1.5px var(--accent),
+                0 4px 16px rgba(252, 76, 1, 0.18) !important;
+            transform: translateX(3px);
         }
 
         .strip-cat-header {
             font-size: 10px;
-            color: #8899aa;
-            font-weight: bold;
-            margin: 10px 0 5px 0;
-            letter-spacing: 1px;
-            border-bottom: 1px solid rgba(136, 153, 170, 0.2);
-            padding-bottom: 2px;
+            color: rgba(255, 255, 255, 0.38);
+            font-weight: 600;
+            margin: 12px 0 6px 2px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+            padding-bottom: 4px;
         }
 
         .strip-cat-header:first-child {
-            margin-top: 0;
+            margin-top: 2px;
         }
 
-        /* THEMES */
+        /* REFINED CATEGORY STRIP ACCENTS */
         .theme-arrival {
-            border-left-color: #ffcc00 !important;
-            background: linear-gradient(135deg, rgba(50, 40, 10, 0.6), rgba(25, 20, 5, 0.8)) !important;
+            border-left-color: var(--gold) !important;
+            background: linear-gradient(135deg, rgba(59, 48, 24, 0.38), rgba(26, 26, 29, 0.95)) !important;
         }
 
         .theme-arrival:hover,
         .theme-arrival.active {
-            background: linear-gradient(135deg, rgba(80, 60, 20, 0.8), rgba(40, 30, 10, 0.9)) !important;
-            border-left-color: #ffea00 !important;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 204, 0, 0.2);
+            background: linear-gradient(135deg, rgba(74, 59, 28, 0.55), rgba(32, 30, 28, 0.98)) !important;
+            border-left-color: var(--gold) !important;
+            box-shadow:
+                inset 0 0 0 1px rgba(242, 193, 78, 0.32),
+                0 4px 14px rgba(0, 0, 0, 0.38);
         }
 
         .theme-departure {
-            border-left-color: #00d2ff !important;
-            background: linear-gradient(135deg, rgba(10, 30, 50, 0.6), rgba(5, 15, 25, 0.8)) !important;
+            border-left-color: var(--blue) !important;
+            background: linear-gradient(135deg, rgba(23, 42, 66, 0.42), rgba(26, 26, 29, 0.95)) !important;
         }
 
         .theme-departure:hover,
         .theme-departure.active {
-            background: linear-gradient(135deg, rgba(20, 50, 80, 0.8), rgba(10, 25, 40, 0.9)) !important;
-            border-left-color: #5cadff !important;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(0, 210, 255, 0.2);
+            background: linear-gradient(135deg, rgba(30, 56, 88, 0.58), rgba(28, 32, 38, 0.98)) !important;
+            border-left-color: var(--blue) !important;
+            box-shadow:
+                inset 0 0 0 1px rgba(77, 163, 255, 0.34),
+                0 4px 14px rgba(0, 0, 0, 0.38);
         }
 
         .theme-local {
-            border-left-color: #ffffff !important;
-            background: linear-gradient(135deg, rgba(40, 40, 40, 0.6), rgba(20, 20, 20, 0.8)) !important;
+            border-left-color: #e5e5ea !important;
+            background: linear-gradient(135deg, rgba(44, 44, 48, 0.55), rgba(26, 26, 29, 0.95)) !important;
         }
 
         .theme-local:hover,
         .theme-local.active {
-            background: linear-gradient(135deg, rgba(70, 70, 70, 0.8), rgba(35, 35, 35, 0.9)) !important;
+            background: linear-gradient(135deg, rgba(58, 58, 64, 0.72), rgba(34, 34, 38, 0.98)) !important;
             border-left-color: #ffffff !important;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 10px rgba(255, 255, 255, 0.2);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.24),
+                0 4px 14px rgba(0, 0, 0, 0.38);
         }
 
         .theme-ground {
-            border-left-color: #556677 !important;
+            border-left-color: #6e6d78 !important;
         }
 
         .theme-undefined {
-            border-left-color: #888888 !important;
+            border-left-color: var(--accent) !important;
         }
 
         @keyframes ghost-blink {
-            0% {
-                opacity: 0.3;
-            }
-
-            50% {
-                opacity: 0.8;
-            }
-
-            100% {
-                opacity: 0.3;
-            }
+            0%, 100% { opacity: 0.35; }
+            50% { opacity: 0.75; }
         }
 
         .ghost-strip {
-            animation: ghost-blink 1.5s infinite;
+            animation: ghost-blink 1.6s ease-in-out infinite;
             pointer-events: none;
-            background: linear-gradient(135deg, rgba(40, 40, 40, 0.6), rgba(20, 20, 20, 0.8));
-            border-left-color: #777 !important;
+            background: #161618;
+            border-left-color: #52525b !important;
         }
 
         @keyframes undefined-vehicle-glow {
-            0% {
-                box-shadow: 0 0 4px rgba(255, 170, 0, 0.2);
-                border-left-color: rgba(255, 170, 0, 0.4);
+            0%, 100% {
+                box-shadow: inset 0 0 0 1px rgba(252, 76, 1, 0.25);
+                border-left-color: rgba(252, 76, 1, 0.5);
             }
-
             50% {
-                box-shadow: 0 0 12px rgba(255, 170, 0, 0.5), inset 0 0 8px rgba(255, 170, 0, 0.05);
-                border-left-color: rgba(255, 170, 0, 1);
-            }
-
-            100% {
-                box-shadow: 0 0 4px rgba(255, 170, 0, 0.2);
-                border-left-color: rgba(255, 170, 0, 0.4);
+                box-shadow: inset 0 0 0 1px rgba(252, 76, 1, 0.65), 0 4px 14px rgba(252, 76, 1, 0.16);
+                border-left-color: #fc4c01;
             }
         }
 
         .undefined-vehicle-strip {
-            animation: undefined-vehicle-glow 1.5s ease-in-out infinite;
-            border-left-color: #ffaa00 !important;
+            animation: undefined-vehicle-glow 1.6s ease-in-out infinite;
+            border-left-color: var(--accent) !important;
         }
 
         .undefined-vehicle-strip .strip-callsign {
-            color: #ffaa00 !important;
+            color: var(--accent) !important;
             font-size: 12px !important;
         }
 
         .strip-callsign {
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            color: #fff;
-            font-size: 14px;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--fg-primary);
+            font-size: 13px;
         }
 
         .strip-details {
             display: flex;
             justify-content: space-between;
-            font-weight: 600;
+            font-family: var(--font-mono);
+            font-weight: 500;
             font-size: 10px;
-            letter-spacing: 0.5px;
-            color: #99aabb;
+            letter-spacing: 0.02em;
+            color: var(--fg-secondary);
             margin-top: 4px;
+            font-variant-numeric: tabular-nums;
         }
 
-
+        /* TYPOGRAPHY & FORM PRIMITIVES */
         h2 {
-            margin: 0 0 10px 0;
-            font-size: 14px;
-            font-weight: 700;
+            margin: 0 0 12px 0;
+            font-size: 11px;
+            font-weight: 600;
             text-transform: uppercase;
-            color: #5cadff;
-            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.45);
+            letter-spacing: 0.14em;
         }
 
         label {
             font-size: 10px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #8899aa;
+            letter-spacing: 0.08em;
+            color: var(--fg-muted);
             display: block;
-            margin-top: 5px;
-            transition: color 0.2s;
+            margin-top: 6px;
+            margin-bottom: 4px;
+            transition: color 0.18s ease;
         }
 
         input[type="text"],
         input[type="number"],
-        input[type="file"] {
+        input[type="file"],
+        textarea {
             width: 100%;
             box-sizing: border-box;
-            background: rgba(10, 15, 20, 0.6);
-            border: 1px solid rgba(120, 160, 200, 0.3);
-            color: #5cadff;
+            background: var(--bg-well);
+            border: none;
+            color: var(--fg-primary);
             padding: 8px 10px;
-            font-family: 'IBM Plex Sans', sans-serif;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.01em;
+            margin-bottom: 6px;
+            border-radius: 10px;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+                inset 0 1px 3px rgba(0, 0, 0, 0.5);
+            transition: box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            background: #141417;
+            box-shadow:
+                inset 0 0 0 1.5px var(--accent),
+                0 0 0 3px rgba(252, 76, 1, 0.14);
+            color: #ffffff;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: #52525b;
+        }
+
+        input[type="file"]::file-selector-button {
+            background: var(--bg-control);
+            color: var(--fg-primary);
+            border: none;
+            border-radius: 7px;
+            padding: 5px 10px;
+            margin-right: 10px;
+            font-family: var(--font-sans);
             font-size: 11px;
             font-weight: 600;
-            letter-spacing: 0.5px;
-            margin-bottom: 5px;
-            border-radius: 8px;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3), 0 1px 0 rgba(255, 255, 255, 0.05);
-            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: var(--shadow-control);
+            cursor: pointer;
+            transition: background 0.15s ease;
         }
 
-        input:focus {
-            outline: none;
-            background: rgba(15, 25, 35, 0.8);
-            border-color: #5cadff;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4), 0 0 12px rgba(92, 173, 255, 0.4);
-            color: #fff;
+        input[type="file"]::file-selector-button:hover {
+            background: var(--bg-control-hover);
         }
 
+        /* CUSTOM TACTILE RANGE SLIDER */
         input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
             width: 100%;
-            margin: 5px 0;
+            height: 6px;
+            margin: 6px 0;
+            background: #242428;
+            border-radius: 999px;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.55), 0 0 0 2px var(--accent);
+            cursor: pointer;
+            transition: transform 0.15s var(--ease-out-expo);
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.12);
         }
 
         .btn-row {
             display: flex;
-            gap: 4px;
-            margin-top: 5px;
+            gap: 6px;
+            margin-top: 6px;
         }
 
+        /* RARE UI TACTILE BUTTONS */
         button {
             flex: 1;
-            padding: 8px 12px;
+            padding: 9px 12px;
             cursor: pointer;
-            font-weight: 700;
-            font-size: 10px;
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 0.02em;
             text-transform: uppercase;
-            color: #fff;
-            border-radius: 8px;
-            letter-spacing: 1px;
-            background: linear-gradient(135deg, rgba(60, 80, 100, 0.4), rgba(30, 45, 60, 0.6));
-            border: 1px solid rgba(120, 160, 200, 0.2);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 6px rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
-            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            color: var(--fg-secondary);
+            border-radius: 11px;
+            background: var(--bg-control);
+            border: none;
+            box-shadow: var(--shadow-control);
+            transition:
+                background 0.16s ease,
+                color 0.16s ease,
+                box-shadow 0.16s ease,
+                filter 0.16s ease,
+                transform 0.16s var(--ease-out-expo);
         }
 
         button:hover {
-            background: linear-gradient(135deg, rgba(80, 110, 140, 0.6), rgba(40, 60, 80, 0.8));
-            border-color: rgba(180, 220, 255, 0.4);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 8px rgba(255, 255, 255, 0.1);
-            transform: translateY(-1px);
+            background: var(--bg-control-hover);
+            color: var(--fg-primary);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.12),
+                0 2px 6px rgba(0, 0, 0, 0.4);
         }
 
         button:active {
-            transform: scale(0.95) translateY(0) !important;
-            transition: all 0.05s !important;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+            transform: scale(0.97) !important;
+            transition: transform 0.06s ease !important;
         }
 
+        /* Primary Burnt-Orange Active Toggle State */
+        button.is-active-orange {
+            background: linear-gradient(135deg, #ff6a1f, #fc4c01 55%, #e54400) !important;
+            color: #ffffff !important;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.25),
+                0 2px 8px rgba(252, 76, 1, 0.35) !important;
+        }
+
+        /* Warm Gold Active Toggle State */
+        button.is-active-gold {
+            background: linear-gradient(135deg, #4b3c1c, #352b14) !important;
+            color: var(--gold) !important;
+            box-shadow:
+                inset 0 0 0 1px rgba(242, 193, 78, 0.4),
+                inset 0 1px 0 rgba(255, 214, 120, 0.18),
+                0 2px 8px rgba(0, 0, 0, 0.35) !important;
+        }
+
+        /* Warm Gold / Taxi / Save Button (RareUI StarPrompt Gold) */
         .btn-green {
-            background: linear-gradient(135deg, rgba(160, 140, 0, 0.4), rgba(120, 90, 0, 0.6));
-            border-color: rgba(255, 204, 0, 0.3);
-            color: #FFCC00;
+            background: linear-gradient(135deg, #3b3018, #2b2414);
+            color: var(--gold);
+            box-shadow:
+                inset 0 0 0 1px rgba(242, 193, 78, 0.22),
+                inset 0 1px 0 rgba(255, 214, 120, 0.14),
+                0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .btn-green:hover {
-            background: linear-gradient(135deg, rgba(200, 170, 0, 0.6), rgba(140, 110, 0, 0.8));
-            border-color: rgba(255, 204, 0, 0.6);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(255, 204, 0, 0.4);
+            filter: brightness(1.18);
+            color: #ffe082;
         }
 
         .btn-green:active {
-            background: rgba(255, 204, 0, 0.4) !important;
-            border-color: #FFCC00 !important;
-            color: #fff !important;
-            box-shadow: 0 0 20px #FFCC00 !important;
+            filter: brightness(0.95);
         }
 
+        /* Primary Burnt Orange / Fly / Dispatch Button */
         .btn-blue {
-            background: linear-gradient(135deg, rgba(0, 136, 170, 0.5), rgba(0, 85, 119, 0.7));
-            border-color: rgba(0, 221, 255, 0.4);
-            color: #fff;
+            background: linear-gradient(135deg, #ff6a1f, #fc4c01 55%, #e54400);
+            color: #ffffff;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.24),
+                0 2px 6px rgba(252, 76, 1, 0.28);
         }
 
         .btn-blue:hover {
-            background: linear-gradient(135deg, rgba(0, 170, 220, 0.7), rgba(0, 110, 150, 0.9));
-            border-color: rgba(0, 221, 255, 0.7);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 12px rgba(0, 0, 0, 0.4), 0 0 15px rgba(0, 221, 255, 0.6);
+            filter: brightness(1.08);
+            color: #ffffff;
         }
 
         .btn-blue:active {
-            background: rgba(0, 221, 255, 0.5) !important;
-            border-color: #00ddff !important;
-            box-shadow: 0 0 25px #00ddff !important;
+            filter: brightness(0.95);
         }
 
-        @keyframes sun-ray {
-            0% {
-                box-shadow: 0 0 3px rgba(255, 215, 0, 0.3);
-                text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
-            }
-
-            50% {
-                box-shadow: 0 0 12px rgba(255, 215, 0, 0.6);
-                text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
-            }
-
-            100% {
-                box-shadow: 0 0 3px rgba(255, 215, 0, 0.3);
-                text-shadow: 0 0 2px rgba(255, 215, 0, 0.5);
-            }
-        }
-
+        /* Weather Buttons */
         .btn-weather-clear {
-            padding: 8px;
-            /* handled by global button normally, but keep to be safe */
-            border-radius: 8px;
-            /* override default flat */
+            padding: 9px 10px;
+            border-radius: 11px;
             cursor: pointer;
-            font-weight: 700;
-            font-size: 10px;
-            letter-spacing: 1px;
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 0.03em;
             text-transform: uppercase;
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s;
             flex: 1;
-            color: #ffdd00;
-            border: 1px solid rgba(255, 221, 0, 0.4);
-            background: linear-gradient(135deg, rgba(60, 50, 0, 0.6), rgba(30, 20, 0, 0.8));
-            animation: sun-ray 3s infinite;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 6px rgba(0, 0, 0, 0.2);
+            color: var(--gold);
+            background: linear-gradient(135deg, #352b16, #241e12);
+            box-shadow:
+                inset 0 0 0 1px rgba(242, 193, 78, 0.20),
+                inset 0 1px 0 rgba(255, 214, 120, 0.12),
+                0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .btn-weather-clear:hover {
-            background: linear-gradient(135deg, rgba(90, 75, 0, 0.7), rgba(45, 30, 0, 0.9));
-            transform: translateY(-1px);
-            border-color: rgba(255, 221, 0, 0.7);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 221, 0, 0.3);
-        }
-
-        .btn-weather-clear:active {
-            background: rgba(255, 221, 0, 0.4) !important;
-            border-color: #ffdd00 !important;
-            color: #fff !important;
-            box-shadow: 0 0 25px #ffdd00 !important;
-            transform: scale(0.95) !important;
-        }
-
-        @keyframes rain-drop {
-            0% {
-                background-position: 0 0;
-            }
-
-            100% {
-                background-position: -20px 40px;
-            }
+            filter: brightness(1.16);
+            color: #ffe082;
         }
 
         .btn-weather-rain {
-            padding: 8px;
-            border-radius: 8px;
+            padding: 9px 10px;
+            border-radius: 11px;
             cursor: pointer;
-            font-weight: 700;
-            font-size: 10px;
-            letter-spacing: 1px;
+            font-weight: 600;
+            font-size: 11px;
+            letter-spacing: 0.03em;
             text-transform: uppercase;
-            transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, border-color 0.3s;
             flex: 1;
-            color: #88ccff;
-            border: 1px solid rgba(136, 204, 255, 0.4);
-            background-color: rgba(0, 30, 60, 0.6);
-            background-image: linear-gradient(to bottom right, transparent 40%, rgba(100, 150, 255, 0.15) 45%, transparent 50%);
-            background-size: 20px 40px;
-            animation: rain-drop 0.6s linear infinite;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 6px rgba(0, 0, 0, 0.2);
+            color: #7cc0ff;
+            background: linear-gradient(135deg, #182738, #121c28);
+            box-shadow:
+                inset 0 0 0 1px rgba(124, 192, 255, 0.20),
+                inset 0 1px 0 rgba(180, 220, 255, 0.10),
+                0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .btn-weather-rain:hover {
-            border-color: rgba(136, 204, 255, 0.7);
-            background-color: rgba(0, 45, 90, 0.8);
-            background-image: linear-gradient(to bottom right, transparent 40%, rgba(100, 150, 255, 0.15) 45%, transparent 50%);
-            background-size: 20px 40px;
-            animation: rain-drop 0.6s linear infinite;
-            transform: translateY(-1px);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(136, 204, 255, 0.3);
+            filter: brightness(1.16);
+            color: #a8d5ff;
         }
 
-        .btn-weather-rain:active {
-            background: rgba(136, 204, 255, 0.4) !important;
-            background-image: linear-gradient(to bottom right, transparent 40%, rgba(100, 150, 255, 0.15) 45%, transparent 50%) !important;
-            border-color: #88ccff !important;
-            color: #fff !important;
-            box-shadow: 0 0 25px #88ccff !important;
-            transform: scale(0.95) !important;
-        }
-
-        /* HOLD Action */
+        /* HOLD / Amber Action */
         .btn-yellow {
-            background: linear-gradient(135deg, rgba(166, 101, 85, 0.4), rgba(120, 70, 50, 0.6));
-            border-color: rgba(252, 163, 17, 0.3);
-            color: #fca311;
+            background: linear-gradient(135deg, #382615, #271b10);
+            color: #ffa938;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 159, 10, 0.24),
+                inset 0 1px 0 rgba(255, 190, 90, 0.12),
+                0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .btn-yellow:hover {
-            background: linear-gradient(135deg, rgba(200, 130, 100, 0.6), rgba(160, 90, 60, 0.8));
-            border-color: rgba(252, 163, 17, 0.6);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(252, 163, 17, 0.4);
+            filter: brightness(1.18);
+            color: #ffc168;
         }
 
-        .btn-yellow:active {
-            background: rgba(252, 163, 17, 0.4) !important;
-            border-color: #fca311 !important;
-            color: #fff !important;
-            box-shadow: 0 0 20px #fca311 !important;
-        }
-
-        /* KILL Action */
+        /* KILL / Destructive Action */
         .btn-red {
-            background: linear-gradient(135deg, rgba(150, 30, 30, 0.4), rgba(100, 10, 10, 0.6));
-            border-color: rgba(255, 50, 50, 0.4) !important;
-            color: #f55 !important;
+            background: linear-gradient(135deg, #381818, #261111);
+            color: #ff6961 !important;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 69, 58, 0.28),
+                inset 0 1px 0 rgba(255, 120, 110, 0.12),
+                0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .btn-red:hover {
-            background: linear-gradient(135deg, rgba(200, 40, 40, 0.6), rgba(140, 15, 15, 0.8));
-            border-color: rgba(255, 80, 80, 0.7) !important;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 15px rgba(255, 0, 0, 0.5);
+            background: linear-gradient(135deg, #481e1e, #321515);
+            color: #ff8a84 !important;
         }
 
-        .btn-red:active {
-            background: rgba(255, 0, 0, 0.5) !important;
-            border-color: #f00 !important;
-            color: #fff !important;
-            box-shadow: 0 0 25px #f00 !important;
-        }
-
+        /* Neutral Tactile Action Button */
         .btn-action {
-            background: linear-gradient(135deg, rgba(40, 60, 80, 0.5), rgba(20, 35, 50, 0.7));
-            color: #5cadff;
-            border-color: rgba(92, 173, 255, 0.3);
+            background: var(--bg-control);
+            color: #d4d4d8;
             margin-top: 5px;
             width: 100%;
+            box-shadow: var(--shadow-control);
         }
 
         .btn-action:hover {
-            background: linear-gradient(135deg, rgba(60, 90, 120, 0.7), rgba(30, 50, 70, 0.9));
-            border-color: rgba(92, 173, 255, 0.6);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(92, 173, 255, 0.4);
+            background: var(--bg-control-hover);
+            color: #ffffff;
         }
 
-        .btn-action:active {
-            background: rgba(92, 173, 255, 0.4) !important;
-            border-color: #5cadff !important;
-            color: #fff !important;
-            box-shadow: 0 0 25px #5cadff !important;
-        }
-
+        /* Teleport Action (Tactile Slate/Warm Neutral — no purple) */
         .btn-tp {
             flex: 0.4;
-            background: linear-gradient(135deg, rgba(80, 40, 100, 0.4), rgba(50, 20, 70, 0.6));
-            color: #d0f;
-            border-color: rgba(221, 0, 255, 0.3);
+            background: #28282e;
+            color: #f5f5f7;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+                inset 0 1px 0 rgba(255, 255, 255, 0.10),
+                0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .btn-tp:hover {
-            background: linear-gradient(135deg, rgba(110, 50, 140, 0.6), rgba(70, 30, 100, 0.8));
-            border-color: rgba(221, 0, 255, 0.6);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(221, 0, 255, 0.4);
-        }
-
-        .btn-tp:active {
-            background: rgba(221, 0, 255, 0.4) !important;
-            border-color: #d0f !important;
-            color: #fff !important;
-            box-shadow: 0 0 25px #d0f !important;
+            background: #34343c;
+            color: #ffffff;
         }
 
         .btn-clear-route {
             flex: 1;
-            background: linear-gradient(135deg, rgba(100, 20, 20, 0.4), rgba(60, 10, 10, 0.6));
-            color: #f55;
-            border-color: rgba(255, 85, 85, 0.4);
+            background: linear-gradient(135deg, #331717, #231010);
+            color: #ff6961;
             font-size: 10px;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 69, 58, 0.22),
+                0 1px 2px rgba(0, 0, 0, 0.35);
         }
 
         .btn-clear-route:hover {
-            background: linear-gradient(135deg, rgba(140, 30, 30, 0.6), rgba(80, 15, 15, 0.8));
-            border-color: rgba(255, 85, 85, 0.7);
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 6px 12px rgba(0, 0, 0, 0.3), 0 0 12px rgba(255, 85, 85, 0.4);
+            background: linear-gradient(135deg, #421d1d, #2d1414);
+            color: #ff8a84;
         }
 
-        .btn-clear-route:active {
-            background: rgba(255, 85, 85, 0.4) !important;
-            border-color: #f55 !important;
-            color: #fff !important;
-            box-shadow: 0 0 25px #f55 !important;
-        }
-
+        /* RARE UI FLOATING PILL TOAST */
         #notif {
             position: absolute;
-            top: 20px;
+            top: 24px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 10px 20px;
-            background: linear-gradient(135deg, rgba(30, 40, 50, 0.85), rgba(15, 20, 25, 0.95));
-            border: 1px solid rgba(120, 160, 200, 0.3);
-            color: #5cadff;
+            padding: 9px 16px 9px 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #1c1c1e;
+            color: var(--fg-primary);
+            font-family: var(--font-sans);
             font-weight: 600;
-            font-size: 13px;
-            letter-spacing: 1px;
-            border-radius: 12px;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 8px 16px rgba(0, 0, 0, 0.4), 0 0 15px rgba(92, 173, 255, 0.2);
+            font-size: 12px;
+            letter-spacing: -0.01em;
+            border-radius: 9999px;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+                0 2px 6px rgba(0, 0, 0, 0.4),
+                0 10px 28px rgba(0, 0, 0, 0.55);
             opacity: 0;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            transition: opacity 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: opacity 0.25s var(--ease-out-expo);
             pointer-events: none;
             z-index: 1000;
         }
 
+        #notif::before {
+            content: '';
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            flex-shrink: 0;
+        }
+
         .paused-state {
-            border: 2px solid #f00 !important;
+            box-shadow:
+                inset 0 0 0 1.5px rgba(255, 69, 58, 0.65),
+                0 8px 24px rgba(0, 0, 0, 0.5) !important;
         }
 
         .paused-text {
-            color: #f00 !important;
+            background: rgba(255, 69, 58, 0.16) !important;
+            color: var(--red) !important;
+            box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.32) !important;
         }
 
         /* Rain drip overlay on widgets */
@@ -1078,126 +1170,116 @@
     <canvas id="radar"></canvas>
 
     <div id="info-panel" class="widget" onclick="toggleSystemPause()">
-        <div style="font-size: 20px; font-weight:800; color: #aabbcc; transition: 0.3s;">ATC RADAR SYSTEM <span
-                id="sys-status-text" style="color:#5cadff; transition: 0.3s;">LIVE</span></div>
-        <div id="debug-coords" style="font-size: 11px; color: #667788; margin-top: 5px;">INIT...</div>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 600; letter-spacing: -0.02em; color: #f5f5f7;">
+            <span>ATC Radar</span>
+            <span id="sys-status-text" class="status-badge">LIVE</span>
+        </div>
+        <div id="debug-coords" style="font-family: var(--font-mono); font-size: 11px; color: var(--fg-muted); margin-top: 6px; font-variant-numeric: tabular-nums;">INIT...</div>
     </div>
-
-
 
     <div id="zoom-panel" class="widget">
         <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: flex-start;">
-            <div
-                style="font-size: 9px; color: #8899aa; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px;">
+            <div style="font-size: 9px; color: rgba(255,255,255,0.4); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 3px;">
                 ZULU TIME</div>
             <div id="zulu-clock-display"
-                style="font-family: 'JetBrains Mono', monospace; font-size: 20px; color: #fff; font-weight: 700; text-shadow: 0 0 10px rgba(92,173,255,0.4); font-variant-numeric: tabular-nums; line-height: 1;">
+                style="font-family: var(--font-mono); font-size: 19px; color: #f5f5f7; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1;">
                 --:--:--</div>
         </div>
         <div style="display: flex; gap: 6px; align-items: center;">
             <button class="btn-action" onclick="toggleStripBay()"
-                style="height: 28px; font-size: 10px; padding: 0 8px; display: flex; align-items: center; justify-content: center;">STRIPS</button>
+                style="height: 36px; font-size: 10px; padding: 0 11px; margin: 0; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex: none; width: auto;">STRIPS</button>
             <button class="btn-zoom" onclick="adjustZoom(1.1)" title="Zoom In">+</button>
             <button class="btn-zoom" onclick="adjustZoom(0.9)" title="Zoom Out">−</button>
         </div>
     </div>
 
-    <div id="weather-panel" class="widget" style="top: 140px; left: 40px; width: 250px;">
-        <h2>WEATHER</h2>
-        <div class="btn-row" style="margin-bottom:8px;">
+    <div id="weather-panel" class="widget" style="top: 112px; left: 32px; width: 250px; box-sizing: border-box; padding: 14px 16px;">
+        <h2 style="margin-bottom: 8px;">Weather</h2>
+        <div class="btn-row" style="margin-bottom: 6px; margin-top: 0;">
             <button class="btn-weather-clear" onclick="setWeather('clear')">CLEAR</button>
             <button class="btn-weather-rain" onclick="setWeather('rain')">RAIN</button>
         </div>
         <button class="btn-action"
-            style="padding: 8px; font-size: 11px; font-weight: bold; width: 100%; text-decoration: none; text-align: center; display: block;"
+            style="padding: 8px 10px; font-size: 11px; font-weight: 600; width: 100%; text-decoration: none; text-align: center; display: block; margin-top: 0;"
             onclick="toggleAwosModal()">ENVIRONMENT & AWOS MENU</button>
     </div>
 
-    <div id="instructor-panel" class="widget" style="top: 300px; left: 40px; width: 250px;">
-        <h2>INSTRUCTOR</h2>
+    <div id="instructor-panel" class="widget" style="top: 246px; left: 32px; width: 250px; box-sizing: border-box; padding: 14px 16px;">
+        <h2 style="margin-bottom: 8px;">Instructor</h2>
         <button class="btn-action" id="btn-spawn-mode"
-            style="padding: 8px; font-size: 11px; font-weight: bold; width: 100%; text-decoration: none; text-align: center; display: block; margin-bottom: 5px;"
+            style="padding: 8px 10px; font-size: 11px; font-weight: 600; width: 100%; text-align: center; display: block; margin-top: 0; margin-bottom: 5px;"
             onclick="toggleAircraftSpawnMode()">SPAWN AIRCRAFT: OFF</button>
         <button class="btn-action"
-            style="padding: 8px; font-size: 11px; font-weight: bold; width: 100%; text-decoration: none; text-align: center; display: block; margin-bottom: 5px;"
+            style="padding: 8px 10px; font-size: 11px; font-weight: 600; width: 100%; text-align: center; display: block; margin-top: 0; margin-bottom: 5px;"
             onclick="toggleScorePanel()">SCORING</button>
         <button class="btn-action"
-            style="padding: 8px; font-size: 11px; font-weight: bold; width: 100%; text-decoration: none; text-align: center; display: block;"
+            style="padding: 8px 10px; font-size: 11px; font-weight: 600; width: 100%; text-align: center; display: block; margin-top: 0;"
             onclick="toggleGenSettingsModal()">SETTINGS</button>
     </div>
 
     <div id="score-panel" class="widget score-hidden"
-        style="top: 300px; left: 345px; width: 250px; z-index: 9; display: flex; flex-direction: column; gap: 8px;">
+        style="top: 112px; left: 298px; width: 256px; box-sizing: border-box; padding: 14px 16px; z-index: 9; display: flex; flex-direction: column; gap: 7px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h2 style="margin: 0;">SCORE</h2>
+            <h2 style="margin: 0;">Score</h2>
             <div id="current-score"
-                style="font-size: 24px; font-weight: bold; color: #00ff66; font-family: 'JetBrains Mono', monospace; text-shadow: 0 0 10px rgba(0,255,102,0.4);">
+                style="font-size: 24px; font-weight: 700; color: var(--green); font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em;">
                 100</div>
         </div>
 
-        <div style="display: flex; gap: 5px;">
-            <button class="btn-action" onclick="resetScore()" style="flex: 1; padding: 6px; font-size: 9px;">RESET TO
-                100</button>
-            <button class="btn-action" onclick="undoScore()"
-                style="flex: 1; padding: 6px; font-size: 9px; border-color: #fca311; color: #fca311;">UNDO LAST</button>
+        <div style="display: flex; gap: 6px;">
+            <button class="btn-action" onclick="resetScore()" style="flex: 1; padding: 7px; font-size: 10px; margin: 0;">RESET TO 100</button>
+            <button class="btn-yellow" onclick="undoScore()" style="flex: 1; padding: 7px; font-size: 10px; margin: 0;">UNDO LAST</button>
         </div>
 
-        <div
-            style="background: rgba(0,0,0,0.3); border: 1px solid rgba(120,160,200,0.2); border-radius: 8px; padding: 8px; margin-top: 5px;">
+        <div style="background: var(--bg-well); border-radius: 12px; padding: 10px; margin-top: 2px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);">
             <label style="margin-top: 0;">MISTAKE REASON</label>
             <input type="text" id="mistake-reason" placeholder="e.g. Late handoff" style="margin-bottom: 8px;">
 
             <label style="margin-top: 0;">POINTS (-)</label>
-            <div style="display: flex; gap: 5px;">
+            <div style="display: flex; gap: 6px;">
                 <input type="number" id="mistake-points" placeholder="0" min="1" max="100" style="flex: 1; margin: 0;">
-                <button class="btn-red" onclick="subtractScore()" style="padding: 0 15px;">DEDUCT</button>
+                <button class="btn-red" onclick="subtractScore()" style="padding: 0 14px; flex: none; width: auto;">DEDUCT</button>
             </div>
         </div>
 
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: bold; color: #8899aa; margin-top: 5px; border-bottom: 1px solid rgba(136,153,170,0.2); padding-bottom: 2px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 600; letter-spacing: 0.12em; color: rgba(255,255,255,0.4); margin-top: 4px; border-bottom: 1px dashed rgba(255,255,255,0.08); padding-bottom: 4px;">
             <span>DEDUCTION LOG</span>
             <button class="btn-action" onclick="copyDeductionLog()"
-                style="padding: 2px 6px; font-size: 8px; margin: 0; width: auto; flex: none;">COPY</button>
+                style="padding: 3px 8px; font-size: 9px; border-radius: 7px; margin: 0; width: auto; flex: none;">COPY</button>
         </div>
         <div id="score-log"
-            style="flex: 1; min-height: 80px; max-height: 120px; overflow-y: auto; font-size: 10px; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; user-select: text; -webkit-user-select: text;">
-            <div style="color: #556677; text-align: center; font-style: italic; margin-top: 10px;">No deductions yet.
-            </div>
+            style="flex: 1; min-height: 80px; max-height: 120px; overflow-y: auto; font-size: 11px; display: flex; flex-direction: column; gap: 5px; padding-right: 4px; user-select: text; -webkit-user-select: text;">
+            <div style="color: var(--fg-muted); text-align: center; margin-top: 12px; font-size: 11px;">No deductions yet.</div>
         </div>
     </div>
 
     <!-- System Settings Modal -->
     <div id="gen-settings-modal" class="widget hidden"
-        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 750px; z-index: 1001; display: flex; flex-direction: column; background: rgba(15, 23, 42, 0.95); border: 2px solid rgba(100, 150, 200, 0.5); padding: 20px;">
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(120, 160, 200, 0.3); padding-bottom: 10px;">
-            <h2 style="margin: 0; font-size: 16px; color: #fff;">SYSTEM SETTINGS</h2>
-            <button class="btn-red" onclick="toggleGenSettingsModal()"
-                style="padding: 4px 10px; font-size: 12px; margin: 0; flex: none;">✕</button>
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 740px; max-width: calc(100vw - 32px); z-index: 1001; display: flex; flex-direction: column; background: #141416; padding: 22px; border-radius: 26px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); padding-bottom: 12px;">
+            <div>
+                <h2 style="margin: 0; font-size: 16px; font-weight: 600; text-transform: none; letter-spacing: -0.02em; color: #f5f5f7;">System Settings</h2>
+                <div style="font-size: 12px; color: var(--fg-muted); margin-top: 2px;">Traffic templates, radar chart alignment, and aerodrome defaults.</div>
+            </div>
+            <button class="btn-action" onclick="toggleGenSettingsModal()"
+                style="width: 32px; height: 32px; padding: 0; border-radius: 999px; font-size: 13px; margin: 0; flex: none; display: grid; place-items: center;">✕</button>
         </div>
 
-        <div style="overflow-y: auto; max-height: 700px; padding-right: 5px;">
-            <h3
-                style="color: #fff; border-bottom: 1px solid rgba(255,255,255,0.2); margin-top: 5px; padding-bottom: 5px;">
-                TRAFFIC GENERATOR</h3>
+        <div style="overflow-y: auto; max-height: 72vh; padding-right: 6px;">
+            <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px;">Traffic Generator</div>
             <label>AIRCRAFT VFR TYPES (Comma-separated)</label>
-            <textarea id="gen-ac-types-vfr"
-                style="width: 100%; height: 60px; box-sizing: border-box; background: rgba(10, 15, 20, 0.6); border: 1px solid rgba(120, 160, 200, 0.3); color: #5cadff; padding: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; border-radius: 8px; margin-bottom: 10px; resize: vertical;"></textarea>
+            <textarea id="gen-ac-types-vfr" style="height: 56px; margin-bottom: 10px; resize: vertical;"></textarea>
 
             <label>AIRCRAFT IFR TYPES (Comma-separated)</label>
-            <textarea id="gen-ac-types-ifr"
-                style="width: 100%; height: 60px; box-sizing: border-box; background: rgba(10, 15, 20, 0.6); border: 1px solid rgba(120, 160, 200, 0.3); color: #5cadff; padding: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; border-radius: 8px; margin-bottom: 10px; resize: vertical;"></textarea>
+            <textarea id="gen-ac-types-ifr" style="height: 56px; margin-bottom: 10px; resize: vertical;"></textarea>
 
             <label>HELICOPTER TYPES (Comma-separated)</label>
-            <textarea id="gen-heli-types"
-                style="width: 100%; height: 40px; background: rgba(10, 15, 20, 0.6); border: 1px solid rgba(120, 160, 200, 0.3); color: #5cadff; padding: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; border-radius: 8px; margin-bottom: 10px; resize: vertical;"></textarea>
+            <textarea id="gen-heli-types" style="height: 42px; margin-bottom: 10px; resize: vertical;"></textarea>
 
             <label>AIRPORTS (Comma-separated)</label>
-            <textarea id="gen-airports"
-                style="width: 100%; height: 60px; background: rgba(10, 15, 20, 0.6); border: 1px solid rgba(120, 160, 200, 0.3); color: #5cadff; padding: 8px; font-family: 'IBM Plex Sans', sans-serif; font-size: 11px; border-radius: 8px; margin-bottom: 10px; resize: vertical;"></textarea>
+            <textarea id="gen-airports" style="height: 56px; margin-bottom: 10px; resize: vertical;"></textarea>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 6px;">
                 <div style="flex: 1;">
                     <label>AIRCRAFT VFR CALLSIGNS</label>
                     <input type="text" id="gen-ac-format">
@@ -1211,78 +1293,63 @@
                     <input type="text" id="gen-heli-format">
                 </div>
             </div>
-            <div style="font-size: 9px; color: #8899aa; margin-bottom: 15px;">Use 'X' for random letters, '#' for random
-                numbers. (e.g., N#XX)</div>
+            <div style="font-size: 11px; color: var(--fg-muted); margin-bottom: 18px;">Use <code style="color:#f5f5f7; font-family:var(--font-mono);">X</code> for random letters and <code style="color:#f5f5f7; font-family:var(--font-mono);">#</code> for random digits (e.g., <code style="color:#f5f5f7; font-family:var(--font-mono);">TC-XXX</code>, <code style="color:#f5f5f7; font-family:var(--font-mono);">THY###</code>).</div>
 
-            <h3
-                style="color: #fff; border-bottom: 1px solid rgba(255,255,255,0.2); margin-top: 15px; padding-bottom: 5px;">
-                MAP & RADAR CALIBRATION</h3>
+            <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); border-top: 1px solid rgba(255,255,255,0.07); padding-top: 16px; margin-bottom: 8px;">Map & Radar Calibration</div>
             <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                 <div style="flex: 1;"><label>MAP X OFFSET</label><input type="number" id="gen-map-x"></div>
                 <div style="flex: 1;"><label>MAP Z OFFSET</label><input type="number" id="gen-map-z"></div>
                 <div style="flex: 1;"><label>MAP SCALE</label><input type="number" id="gen-map-scale" step="0.1"></div>
-                <div style="flex: 1;"><label>MAP OPACITY</label><input type="number" id="gen-map-opacity" step="0.1"
-                        max="1.0" min="0.0"></div>
+                <div style="flex: 1;"><label>MAP OPACITY</label><input type="number" id="gen-map-opacity" step="0.1" max="1.0" min="0.0"></div>
                 <div style="flex: 1;"><label>MAP ROTATION</label><input type="number" id="gen-map-rot"></div>
             </div>
 
-            <div style="margin-top: 5px; margin-bottom: 15px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px dashed rgba(255,170,0,0.3);">
-                <label style="display: block; margin-bottom: 8px; color: #ffaa00; font-size: 10px; font-weight: bold; letter-spacing: 1px;">REPLACE MAP IMAGE (PNG ONLY)</label>
+            <div style="margin-top: 4px; margin-bottom: 18px; background: var(--bg-well); padding: 12px 14px; border-radius: 14px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.07);">
+                <label style="display: block; margin-top: 0; margin-bottom: 8px; color: var(--fg-secondary);">REPLACE MAP IMAGE (PNG ONLY)</label>
                 <div style="display: flex; gap: 10px; align-items: center;">
-                    <input type="file" id="map-upload-input" accept="image/png" style="font-size: 10px; color: #aaa; flex: 1;">
-                    <button class="btn-action" onclick="uploadMapFile()" style="margin: 0; padding: 6px 12px; background: #ffaa00; color: #000; font-weight: bold; font-size: 10px;">UPLOAD MAP</button>
+                    <input type="file" id="map-upload-input" accept="image/png" style="font-size: 11px; color: var(--fg-secondary); flex: 1; margin: 0;">
+                    <button class="btn-blue" onclick="uploadMapFile()" style="margin: 0; padding: 9px 14px; flex: none; width: auto;">UPLOAD MAP</button>
                 </div>
             </div>
 
-            <h3
-                style="color: #fff; border-bottom: 1px solid rgba(255,255,255,0.2); margin-top: 15px; padding-bottom: 5px;">
-                AWOS & AIRPORT PREFS</h3>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <div style="flex: 1.5;"><label>AIRPORT ICAO</label><input type="text" id="gen-airport-id"
-                        placeholder="LTAC"></div>
+            <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); border-top: 1px solid rgba(255,255,255,0.07); padding-top: 16px; margin-bottom: 8px;">AWOS & Airport Preferences</div>
+            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                <div style="flex: 1.5;"><label>AIRPORT ICAO</label><input type="text" id="gen-airport-id" placeholder="LTAC"></div>
                 <div style="flex: 1.5;"><label>DEFAULT QFE (hPa)</label><input type="number" id="gen-qfe"></div>
                 <div style="flex: 1;"><label>RWY TOP</label><input type="text" id="gen-rwy-top" placeholder="03"></div>
                 <div style="flex: 1;"><label>RWY BOT</label><input type="text" id="gen-rwy-bot" placeholder="21"></div>
             </div>
 
             <div style="display: flex; gap: 10px;">
-                <button class="btn-green" onclick="saveGenSettings()">SAVE & APPLY</button>
+                <button class="btn-blue" onclick="saveGenSettings()" style="padding: 11px 16px;">SAVE & APPLY</button>
             </div>
 
-            <div
-                style="margin-top: 15px; border-top: 1px solid rgba(120, 160, 200, 0.3); padding-top: 15px; display: flex; gap: 10px;">
-                <button class="btn-action" onclick="exportGenSettings()" style="flex: 1;">EXPORT SETTINGS</button>
-                <button class="btn-action" onclick="document.getElementById('import-gen-file').click()"
-                    style="flex: 1;">IMPORT SETTINGS</button>
-                <input type="file" id="import-gen-file" style="display: none;" accept=".json"
-                    onchange="importGenSettings(event)">
+            <div style="margin-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.07); padding-top: 14px; display: flex; gap: 10px;">
+                <button class="btn-action" onclick="exportGenSettings()" style="flex: 1; margin: 0;">EXPORT SETTINGS</button>
+                <button class="btn-action" onclick="document.getElementById('import-gen-file').click()" style="flex: 1; margin: 0;">IMPORT SETTINGS</button>
+                <input type="file" id="import-gen-file" style="display: none;" accept=".json" onchange="importGenSettings(event)">
             </div>
         </div>
     </div>
 
     <!-- AWOS Embedded Modal -->
     <div id="awos-modal" class="widget hidden"
-        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); width: 1600px; height: 1000px; z-index: 1000; display: flex; flex-direction: column; background: rgba(2, 6, 23, 0.98); border: 2px solid rgba(100, 150, 200, 0.5); box-shadow: 0 40px 120px rgba(0,0,0,0.9); padding: 0; backface-visibility: hidden; -webkit-font-smoothing: antialiased; transform-origin: center center;">
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(120, 160, 200, 0.3); padding: 10px 30px; background: rgba(15, 23, 42, 0.95);">
-            <div style="display: flex; align-items: center; gap: 20px;">
-                <h1
-                    style="margin: 0; font-size: 20px; color: #fff; letter-spacing: 4px; font-weight: 900; border-right: 1px solid rgba(255,255,255,0.2); padding-right: 20px;">
-                    WEATHER CONTROL</h1>
-                <span id="awos-online-sig"
-                    style="color: #00ff66; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: bold; text-shadow: 0 0 10px #00ff66;">LINK
-                    ACTIVE - ENCRYPTED</span>
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.85); width: 1600px; height: 1000px; z-index: 1000; display: flex; flex-direction: column; background: #0c0c0e; border-radius: 28px; padding: 0; backface-visibility: hidden; -webkit-font-smoothing: antialiased; transform-origin: center center;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.075); padding: 14px 24px; background: #141416;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+                <h1 style="margin: 0; font-size: 16px; color: #f5f5f7; letter-spacing: -0.02em; font-weight: 600;">
+                    Weather & AWOS Control</h1>
+                <span id="awos-online-sig" class="status-badge" style="margin-left: 0;">LINK ACTIVE</span>
             </div>
             <button class="btn-red" onclick="toggleAwosModal()"
-                style="font-size: 16px; padding: 8px 30px; font-weight: 900; box-shadow: 0 4px 15px rgba(255,0,0,0.2);">✕
-                DISMISS UNIT</button>
+                style="font-size: 12px; padding: 9px 18px; font-weight: 600; flex: none; width: auto;">✕ DISMISS</button>
         </div>
         <iframe src="/awos_main"
-            style="width: 100%; height: 100%; border: none; flex: 1; background: #020617;"></iframe>
+            style="width: 100%; height: 100%; border: none; flex: 1; background: #09090b;"></iframe>
     </div>
 
     <div id="strip-bay" class="widget">
-        <h2>STRIP BAY</h2>
+        <h2>Strip Bay</h2>
         <div id="strip-container">
             <div class="strip-cat-header" id="header-undefined">UNDEFINED</div>
             <div id="cat-container-undefined"></div>
@@ -1297,171 +1364,138 @@
                 ondrop="handleDrop(event, 'local')"></div>
         </div>
         <div id="ground-bay" style="flex: none; display: flex; flex-direction: column;">
-        <div class="strip-cat-header" id="header-ground">GROUND</div>
+            <div class="strip-cat-header" id="header-ground">GROUND</div>
             <div id="cat-container-ground"></div>
         </div>
-        <div class="btn-row" style="margin-top: auto; flex: none;">
-            <button id="btn-debug" class="btn-action" onclick="toggleDebugMode()">DEBUG GLOW</button>
-            <button id="btn-creator" class="btn-action" onclick="toggleCreatorMode()">CREATOR MODE</button>
-            <button id="btn-calibrate" class="btn-action" onclick="startCalibration()">CALIBRATE</button>
+        <div class="btn-row" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); flex: none;">
+            <button id="btn-debug" class="btn-action" style="margin: 0; font-size: 10px; padding: 8px 6px;" onclick="toggleDebugMode()">DEBUG</button>
+            <button id="btn-creator" class="btn-action" style="margin: 0; font-size: 10px; padding: 8px 6px;" onclick="toggleCreatorMode()">CREATOR</button>
+            <button id="btn-calibrate" class="btn-action" style="margin: 0; font-size: 10px; padding: 8px 6px;" onclick="startCalibration()">CALIBRATE</button>
         </div>
     </div>
 
     <!-- ALT-CLICK SPAWN MENU -->
-    <div id="alt-spawn-menu" class="widget hidden" style="position: absolute; z-index: 100; width: 180px;">
-        <h2 style="font-size: 12px; margin-bottom: 5px;">SPAWN HERE</h2>
+    <div id="alt-spawn-menu" class="widget hidden" style="position: absolute; z-index: 100; width: 196px; padding: 14px;">
+        <h2 style="margin-bottom: 8px;">Spawn Aircraft</h2>
 
-        <div style="font-size: 9px; color: #aaa; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-            LARGE PLANE</div>
-        <div class="btn-row">
-            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:large_plane', 'VFR')"
-                style="font-size: 9px;">VFR</button>
-            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:large_plane', 'IFR')"
-                style="font-size: 9px;">IFR</button>
+        <div style="font-size: 9px; font-weight: 600; letter-spacing: 0.1em; color: var(--fg-muted); margin-bottom: 4px;">LARGE PLANE</div>
+        <div class="btn-row" style="margin-top: 0; margin-bottom: 8px;">
+            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:large_plane', 'VFR')" style="font-size: 10px; margin: 0;">VFR</button>
+            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:large_plane', 'IFR')" style="font-size: 10px; margin: 0;">IFR</button>
         </div>
 
-        <div
-            style="font-size: 9px; color: #aaa; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-top: 5px;">
-            PLANE</div>
-        <div class="btn-row">
-            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:plane', 'VFR')"
-                style="font-size: 9px;">VFR</button>
-            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:plane', 'IFR')"
-                style="font-size: 9px;">IFR</button>
+        <div style="font-size: 9px; font-weight: 600; letter-spacing: 0.1em; color: var(--fg-muted); margin-bottom: 4px;">LIGHT PLANE</div>
+        <div class="btn-row" style="margin-top: 0; margin-bottom: 8px;">
+            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:plane', 'VFR')" style="font-size: 10px; margin: 0;">VFR</button>
+            <button class="btn-action" onclick="executeAltSpawn('simpleplanes:plane', 'IFR')" style="font-size: 10px; margin: 0;">IFR</button>
         </div>
 
-        <div
-            style="font-size: 9px; color: #aaa; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-top: 5px;">
-            HELICOPTER</div>
+        <div style="font-size: 9px; font-weight: 600; letter-spacing: 0.1em; color: var(--fg-muted); margin-bottom: 4px;">HELICOPTER</div>
         <button class="btn-action" onclick="executeAltSpawn('simpleplanes:helicopter', 'VFR')"
-            style="margin-bottom: 6px; margin-top: 4px; width: 100%;">SPAWN HELICOPTER</button>
+            style="margin: 0 0 8px 0; width: 100%; font-size: 10px;">SPAWN HELICOPTER</button>
 
-        <div style="font-size: 9px; color: #aaa; margin-bottom: 3px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-            GROUND</div>
-        <div class="btn-row">
-            <button class="btn-green" onclick="executeAltSpawn('FOLLOWME')" style="font-size: 9px;">FOLLOWME</button>
-            <button class="btn-yellow" onclick="executeAltSpawn('TRUCK')" style="font-size: 9px;">TRUCK</button>
+        <div style="font-size: 9px; font-weight: 600; letter-spacing: 0.1em; color: var(--fg-muted); margin-bottom: 4px;">GROUND</div>
+        <div class="btn-row" style="margin-top: 0; margin-bottom: 10px;">
+            <button class="btn-green" onclick="executeAltSpawn('FOLLOWME')" style="font-size: 10px;">FOLLOWME</button>
+            <button class="btn-yellow" onclick="executeAltSpawn('TRUCK')" style="font-size: 10px;">TRUCK</button>
         </div>
 
-        <div
-            style="font-size: 9px; color: #aaa; margin-bottom: 3px; margin-top: 10px; border-bottom: 1px solid rgba(255,255,255,0.1);">
-            EVENTS</div>
-        <button class="btn-action" onclick="executeCrash()"
-            style="width:100%; border-color: #ffaa00; color: #ffaa00; background: linear-gradient(135deg, rgba(80, 50, 0, 0.4), rgba(50, 30, 0, 0.6));">TRIGGER
-            CRASH</button>
-        <button id="btn-kill-all-alt" class="btn-red" onclick="killAllPlanes(this)"
-            style="margin-top:15px; width:100%; background-color:#331111;">KILL ALL AIRCRAFT</button>
+        <div style="border-top: 1px solid rgba(255,255,255,0.07); padding-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+            <button class="btn-yellow" onclick="executeCrash()" style="width: 100%; font-size: 10px;">TRIGGER CRASH</button>
+            <button id="btn-kill-all-alt" class="btn-red" onclick="killAllPlanes(this)" style="width: 100%; font-size: 10px;">KILL ALL AIRCRAFT</button>
+        </div>
     </div>
 
     <!-- CREATOR SPAWN MENU -->
     <div id="creator-spawn-menu" class="widget hidden"
-        style="position: absolute; z-index: 100; width: 220px; text-align: center;">
-        <h2 style="font-size: 12px; margin-bottom: 10px; color: #fff;">CREATE WAYPOINT</h2>
+        style="position: absolute; z-index: 100; width: 224px; text-align: center; padding: 16px;">
+        <h2 style="margin-bottom: 10px;">Create Waypoint</h2>
 
-        <div style="font-size: 10px; margin-bottom: 5px; color: #aaa; display: flex; justify-content: space-between;">
-            <span>🌱 GRASS (-59)</span>
-            <span>☁️ SKY (-29)</span>
+        <div style="font-size: 10px; font-family: var(--font-mono); margin-bottom: 6px; color: var(--fg-secondary); display: flex; justify-content: space-between;">
+            <span>GND (-59)</span>
+            <span>AIR (-29)</span>
         </div>
 
         <input type="range" id="wp-y-slider" min="-59" max="-29" value="-59" step="1"
-            oninput="document.getElementById('wp-y-display').innerText = this.value" style="width: 100%; margin-bottom: 15px; appearance: none; height: 12px; border-radius: 6px; 
-                      background: linear-gradient(to right, #4CAF50 0%, #8D6E63 20%, #87CEEB 80%, #00BFFF 100%); 
-                      outline: none; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);">
+            oninput="document.getElementById('wp-y-display').innerText = this.value"
+            style="width: 100%; margin-bottom: 12px;">
 
-        <div style="font-size: 11px; color: #fff; margin-bottom: 10px;">
-            Y LEVEL: <span id="wp-y-display" style="font-weight: bold; color: #00ddff;">-59</span>
+        <div style="font-size: 11px; color: var(--fg-secondary); margin-bottom: 12px; font-family: var(--font-mono);">
+            Y LEVEL: <span id="wp-y-display" style="font-weight: 700; color: var(--fg-primary);">-59</span>
         </div>
 
         <div class="btn-row">
-            <button class="btn-red" onclick="cancelCreatorSpawn()" style="font-size: 9px; flex: 1;">CANCEL</button>
-            <button class="btn-green" onclick="confirmCreatorSpawn()" style="font-size: 9px; flex: 1;">SPAWN</button>
+            <button class="btn-action" onclick="cancelCreatorSpawn()" style="font-size: 10px; flex: 1; margin: 0;">CANCEL</button>
+            <button class="btn-blue" onclick="confirmCreatorSpawn()" style="font-size: 10px; flex: 1;">SPAWN</button>
         </div>
     </div>
 
     <!-- CALIBRATION MODAL -->
     <div id="modal-calibrate" class="widget hidden"
-        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 350px; z-index: 1001; background: rgba(15, 23, 42, 0.95); border: 2px solid rgba(255, 170, 0, 0.5);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid rgba(255,170,0,0.3); padding-bottom: 10px;">
-            <h2 id="calib-title" style="margin: 0; font-size: 16px; color: #ffaa00;">MAP CALIBRATION</h2>
-            <button class="btn-red" onclick="closeCalibration()" style="padding: 4px 10px; font-size: 12px; margin: 0; flex: none;">✕</button>
+        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 360px; z-index: 1001; background: #141416; padding: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.07); padding-bottom: 10px;">
+            <h2 id="calib-title" style="margin: 0; font-size: 14px; font-weight: 600; text-transform: none; letter-spacing: -0.01em; color: #f5f5f7;">Map Calibration</h2>
+            <button class="btn-action" onclick="closeCalibration()" style="width: 28px; height: 28px; padding: 0; border-radius: 999px; font-size: 12px; margin: 0; flex: none; display: grid; place-items: center;">✕</button>
         </div>
-        
+
         <div id="calib-step-1">
-            <p id="calib-instruction" style="font-size: 13px; margin-bottom: 15px; color: #ccc; line-height: 1.4;">Step 1: Click a known landmark on the radar map.</p>
+            <p id="calib-instruction" style="font-size: 13px; margin: 0 0 8px 0; color: var(--fg-secondary); line-height: 1.5;">Click a known landmark block on the radar map.</p>
         </div>
-        
+
         <div id="calib-coords" class="hidden">
-            <p id="calib-coord-text" style="font-size: 13px; margin-bottom: 15px; color: #ffaa00; font-weight: bold;">Enter World Coordinates for Point 1</p>
-            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                <div style="flex: 1;"><label style="font-size: 10px; color: #aaa; display: block; margin-bottom: 4px;">WORLD X</label><input type="number" id="calib-world-x" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px; border-radius: 4px;" placeholder="e.g. 1500"></div>
-                <div style="flex: 1;"><label style="font-size: 10px; color: #aaa; display: block; margin-bottom: 4px;">WORLD Z</label><input type="number" id="calib-world-z" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 8px; border-radius: 4px;" placeholder="e.g. -200"></div>
+            <p id="calib-coord-text" style="font-size: 12px; margin: 0 0 12px 0; color: var(--accent); font-weight: 600;">Enter World Coordinates for Point 1</p>
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                <div style="flex: 1;"><label style="margin-top: 0;">WORLD X</label><input type="number" id="calib-world-x" placeholder="e.g. 1500"></div>
+                <div style="flex: 1;"><label style="margin-top: 0;">WORLD Z</label><input type="number" id="calib-world-z" placeholder="e.g. -200"></div>
             </div>
-            <button class="btn-action" onclick="submitCalibPoint()" style="width: 100%; background: #ffaa00; color: #000; font-weight: bold;">SUBMIT POINT</button>
+            <button class="btn-blue" onclick="submitCalibPoint()" style="width: 100%;">SUBMIT POINT</button>
         </div>
     </div>
 
-
     <div id="time-tracker-panel" class="widget hidden"
-        style="display: none; padding: 15px; width: 240px; box-sizing: border-box; flex-direction: column; gap: 12px; position: absolute; left: 540px; bottom: 40px; z-index: 10; pointer-events: auto;">
+        style="display: none; padding: 15px 16px; width: 240px; box-sizing: border-box; flex-direction: column; gap: 10px; position: absolute; left: 528px; bottom: 32px; z-index: 10; pointer-events: auto;">
 
-        <div
-            style="display: flex; align-items: center; justify-content: center; gap: 10px; border-bottom: 1px solid rgba(92, 173, 255, 0.2); padding-bottom: 8px;">
-            <span style="font-size: 14px; opacity: 0.8;">⏱️</span>
-            <h2
-                style="margin: 0; font-size: 12px; color: #5cadff; text-align: center; letter-spacing: 3px; font-weight: 700; text-shadow: 0 0 8px rgba(92,173,255,0.4);">
-                TIME LOG</h2>
-            <span style="font-size: 14px; opacity: 0.8;">⏱️</span>
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.07); padding-bottom: 8px;">
+            <h2 style="margin: 0;">Time Log</h2>
+            <span style="font-family: var(--font-mono); font-size: 10px; color: var(--fg-muted);">UTC</span>
         </div>
 
         <div id="tt-departure"
-            style="display: none; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; border: 1px solid rgba(0, 210, 255, 0.15); position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
-            <div
-                style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #00d2ff; box-shadow: 0 0 8px #00d2ff;">
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                    <span style="font-size: 9px; color: #88aadd; font-weight: bold; letter-spacing: 1px;">TAKEOFF</span>
+            style="display: none; background: var(--bg-well); border-radius: 12px; padding: 10px 12px; border-left: 3px solid var(--blue); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.055);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; flex-direction: column; gap: 3px;">
+                    <span style="font-size: 9px; color: var(--fg-muted); font-weight: 600; letter-spacing: 0.1em;">TAKEOFF</span>
                     <span id="tt-val-takeoff"
-                        style="font-size: 18px; color: #fff; font-family: 'JetBrains Mono', monospace; font-weight: bold; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,255,255,0.3);">--:--</span>
+                        style="font-size: 17px; color: #f5f5f7; font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums;">--:--</span>
                 </div>
-                <button class="btn-blue"
-                    style="padding: 8px 12px; font-size: 10px; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,210,255,0.2); margin: 0; flex: unset; width: auto;"
+                <button class="btn-action"
+                    style="padding: 7px 11px; font-size: 10px; border-radius: 9px; margin: 0; flex: unset; width: auto;"
                     onclick="markTime('takeoff')">MARK TO</button>
             </div>
         </div>
 
-        <div id="tt-arrival" style="display: none; flex-direction: column; gap: 10px;">
-            <div
-                style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; border: 1px solid rgba(255, 204, 0, 0.15); position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
-                <div
-                    style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #ffcc00; box-shadow: 0 0 8px #ffcc00;">
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <span
-                            style="font-size: 9px; color: #ddaa55; font-weight: bold; letter-spacing: 1px;">LANDING</span>
+        <div id="tt-arrival" style="display: none; flex-direction: column; gap: 8px;">
+            <div style="background: var(--bg-well); border-radius: 12px; padding: 10px 12px; border-left: 3px solid var(--gold); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.055);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <span style="font-size: 9px; color: var(--fg-muted); font-weight: 600; letter-spacing: 0.1em;">LANDING</span>
                         <span id="tt-val-landing"
-                            style="font-size: 18px; color: #fff; font-family: 'JetBrains Mono', monospace; font-weight: bold; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,255,255,0.3);">--:--</span>
+                            style="font-size: 17px; color: #f5f5f7; font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums;">--:--</span>
                     </div>
-                    <button class="btn-yellow"
-                        style="padding: 8px 12px; font-size: 10px; border-radius: 6px; box-shadow: 0 4px 10px rgba(255,204,0,0.2); margin: 0; flex: unset; width: auto;"
+                    <button class="btn-green"
+                        style="padding: 7px 11px; font-size: 10px; border-radius: 9px; margin: 0; flex: unset; width: auto;"
                         onclick="markTime('landing')">MARK LDG</button>
                 </div>
             </div>
-            <div
-                style="background: rgba(0,0,0,0.4); border-radius: 8px; padding: 10px; border: 1px solid rgba(255, 80, 80, 0.15); position: relative; overflow: hidden; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);">
-                <div
-                    style="position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: #ff5555; box-shadow: 0 0 8px #ff5555;">
-                </div>
-                <div style="display: flex; justify-content: space-between; align-items: center; padding-left: 8px;">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                        <span style="font-size: 9px; color: #dd8888; font-weight: bold; letter-spacing: 1px;">GO
-                            AROUND</span>
+            <div style="background: var(--bg-well); border-radius: 12px; padding: 10px 12px; border-left: 3px solid var(--red); box-shadow: inset 0 0 0 1px rgba(255,255,255,0.055);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; flex-direction: column; gap: 3px;">
+                        <span style="font-size: 9px; color: var(--fg-muted); font-weight: 600; letter-spacing: 0.1em;">GO AROUND</span>
                         <span id="tt-val-go_around"
-                            style="font-size: 18px; color: #fff; font-family: 'JetBrains Mono', monospace; font-weight: bold; font-variant-numeric: tabular-nums; text-shadow: 0 0 10px rgba(255,255,255,0.3);">--:--</span>
+                            style="font-size: 17px; color: #f5f5f7; font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums;">--:--</span>
                     </div>
                     <button class="btn-red"
-                        style="padding: 8px 12px; font-size: 10px; border-radius: 6px; box-shadow: 0 4px 10px rgba(255,80,80,0.2); margin: 0; flex: unset; width: auto;"
+                        style="padding: 7px 11px; font-size: 10px; border-radius: 9px; margin: 0; flex: unset; width: auto;"
                         onclick="markTime('go_around')">MARK GA</button>
                 </div>
             </div>
@@ -1470,104 +1504,102 @@
 
     <div id="sidebar-left-container">
         <div id="control-panel" class="widget hidden">
-            <h2 id="panel-title">--</h2>
+            <h2 id="panel-title" style="font-family: var(--font-mono); font-size: 15px; font-weight: 700; letter-spacing: -0.02em; color: #f5f5f7; text-transform: none; margin-bottom: 8px;">--</h2>
 
             <div id="panel-flight-strip" class="flight-strip">
                 <div class="fs-row"><span>TYPE</span><span id="fs-type" class="fs-val">--</span></div>
                 <div class="fs-row"><span>SQUAWK</span><span id="fs-squawk" class="fs-val">--</span></div>
+                <div class="fs-row"><span>ROUTE</span><span id="fs-route" class="fs-val" style="color: var(--fg-secondary);">--</span></div>
                 <div class="fs-row"><span>SID</span><span id="fs-sid" class="fs-val">--</span></div>
                 <div class="fs-row"><span>AIRWAYS</span><span id="fs-airways" class="fs-val">--</span></div>
-                <div class="fs-row"><span>PLANNED FL</span><span id="fs-pfl" class="fs-val">--</span></div>
-                <div class="fs-row" style="margin-top:4px"><span id="fs-route" class="fs-val" style="color:#8899aa">-- >
-                        --</span></div>
+                <div class="fs-row"><span>PFL</span><span id="fs-pfl" class="fs-val">--</span></div>
             </div>
 
             <div id="panel-auto-select" style="display:none; margin-bottom: 10px;">
-                <div style="font-size: 11px; color: #FFCC00; margin-bottom: 8px;">SELECT VEHICLE TYPE</div>
+                <div style="font-size: 10px; font-weight: 600; letter-spacing: 0.1em; color: var(--gold); margin-bottom: 8px;">SELECT VEHICLE TYPE</div>
                 <div class="btn-row">
                     <button class="btn-green" onclick="setAutomobileType('FOLLOWME')">FOLLOW ME</button>
                     <button class="btn-yellow" onclick="setAutomobileType('TRUCK')">TRUCK</button>
                 </div>
             </div>
 
-            <div id="panel-info-edit" style="display:flex; flex-wrap: nowrap; gap:5px; margin-bottom:5px;">
+            <div id="panel-info-edit" style="display:flex; flex-wrap: nowrap; gap: 6px; margin-bottom: 2px;">
                 <div style="flex: 1;">
                     <label style="margin-top:0">TYPE</label>
-                    <input type="text" id="editType" placeholder="B738" style="text-align:center;"
+                    <input type="text" id="editType" placeholder="B738" style="text-align:center; padding: 6px 8px;"
                         onchange="saveUserData('type')">
                 </div>
                 <div style="flex: 1;">
                     <label style="margin-top:0">SQUAWK</label>
-                    <input type="text" id="editSquawk" placeholder="1200" style="text-align:center; color:#fff;"
+                    <input type="text" id="editSquawk" placeholder="1200" style="text-align:center; padding: 6px 8px;"
                         onchange="saveUserData('squawk')">
                 </div>
                 <div style="flex: 1;">
                     <label style="margin-top:0">GATE</label>
-                    <input type="text" id="standNum" placeholder="A1" style="text-align:center; color:#FFCC00;"
+                    <input type="text" id="standNum" placeholder="A1" style="text-align:center; color: var(--gold); padding: 6px 8px;"
                         onchange="saveUserData('gate')">
                 </div>
                 <div style="flex: 1;">
                     <label style="margin-top:0">ROUTE</label>
-                    <input type="text" id="editRoute" placeholder="LTFM" style="text-align:center; color:#5cadff;"
+                    <input type="text" id="editRoute" placeholder="LTFM" style="text-align:center; padding: 6px 8px;"
                         onchange="saveUserData('route')">
                 </div>
                 <div style="flex: 2;">
                     <label style="margin-top:0">CALLSIGN OVERRIDE</label>
-                    <input type="text" id="visualName" placeholder="TC-XXX" onchange="saveUserData('callsign')">
+                    <input type="text" id="visualName" placeholder="TC-XXX" style="padding: 6px 8px;" onchange="saveUserData('callsign')">
                 </div>
             </div>
 
-            <div id="panel-info-edit-2" style="display:flex; flex-wrap: nowrap; gap:5px; margin-bottom:5px;">
+            <div id="panel-info-edit-2" style="display:flex; flex-wrap: nowrap; gap: 6px; margin-bottom: 6px;">
                 <div style="flex: 1;">
                     <label style="margin-top:0">SID</label>
-                    <input type="text" id="editSid" placeholder="GAYBO1A" style="text-align:center; color:#ffaa00;"
+                    <input type="text" id="editSid" placeholder="GAYBO1A" style="text-align:center; padding: 6px 8px;"
                         onchange="saveUserData('sid')">
                 </div>
                 <div style="flex: 1;">
                     <label style="margin-top:0">AIRWAYS</label>
-                    <input type="text" id="editAirways" placeholder="UM860" style="text-align:center; color:#33cc66;"
+                    <input type="text" id="editAirways" placeholder="UM860" style="text-align:center; padding: 6px 8px;"
                         onchange="saveUserData('airways')">
                 </div>
                 <div style="flex: 1;">
                     <label style="margin-top:0">PLANNED FL</label>
-                    <input type="text" id="editPfl" placeholder="FL330" style="text-align:center; color:#cc99ff;"
+                    <input type="text" id="editPfl" placeholder="FL330" style="text-align:center; padding: 6px 8px;"
                         onchange="saveUserData('pfl')">
                 </div>
             </div>
 
             <div id="panel-category-tools"
-                style="margin-bottom: 10px; display: flex; gap: 10px; align-items: flex-end;">
+                style="margin-bottom: 8px; display: flex; gap: 10px; align-items: flex-end;">
                 <div style="flex: 2;">
                     <label style="margin-top:0">CATEGORY</label>
-                    <div class="btn-row" style="margin-top:2px;">
-                        <button id="btn-cat-arrival" class="btn-action" style="font-size: 9px; padding: 6px 2px;"
+                    <div class="btn-row" style="margin-top: 2px;">
+                        <button id="btn-cat-arrival" class="btn-action" style="font-size: 10px; padding: 6px 4px; margin: 0;"
                             onclick="setCategory('arrival')">ARR</button>
-                        <button id="btn-cat-departure" class="btn-action" style="font-size: 9px; padding: 6px 2px;"
+                        <button id="btn-cat-departure" class="btn-action" style="font-size: 10px; padding: 6px 4px; margin: 0;"
                             onclick="setCategory('departure')">DEP</button>
-                        <button id="btn-cat-local" class="btn-action" style="font-size: 9px; padding: 6px 2px;"
+                        <button id="btn-cat-local" class="btn-action" style="font-size: 10px; padding: 6px 4px; margin: 0;"
                             onclick="setCategory('local')">LOC</button>
-                        <button id="btn-cat-ground" class="btn-action" style="font-size: 9px; padding: 6px 2px;"
+                        <button id="btn-cat-ground" class="btn-action" style="font-size: 10px; padding: 6px 4px; margin: 0;"
                             onclick="setCategory('ground')">GND</button>
                     </div>
                 </div>
-                <div class="btn-row" id="row-startup" style="display:none; flex: 1; padding-bottom: 1px;">
-                    <button id="btn-startup" class="btn-action" style="margin-top: 0;" onclick="toggleStartup()">MARK AS
-                        STARTED UP</button>
+                <div class="btn-row" id="row-startup" style="display:none; flex: 1.2;">
+                    <button id="btn-startup" class="btn-action" style="margin-top: 0; font-size: 10px; padding: 6px 6px;" onclick="toggleStartup()">MARK AS STARTED UP</button>
                 </div>
             </div>
 
-            <div id="panel-speed-tools" style="margin-bottom: 10px;">
+            <div id="panel-speed-tools" style="margin-bottom: 8px;">
                 <label style="margin-top:0; display: flex; justify-content: space-between; align-items: center;">
                     <span>SPEED CONTROL</span>
-                    <span id="speed-display-label" style="font-weight: bold; color: #5cadff;">NORMAL (1.0x)</span>
+                    <span id="speed-display-label" style="font-family: var(--font-mono); font-weight: 600; color: var(--fg-primary);">NORMAL (1.0x)</span>
                 </label>
-                <div style="margin-top:6px; padding: 0 5px;">
-                    <input type="range" id="speedSlider" min="1" max="4" step="1" value="2" 
-                        style="width: 100%; cursor: pointer; accent-color: #5cadff;" 
-                        oninput="updateSpeedLabel(this.value)" 
+                <div style="margin-top: 4px; padding: 0 2px;">
+                    <input type="range" id="speedSlider" min="1" max="4" step="1" value="2"
+                        style="width: 100%; cursor: pointer;"
+                        oninput="updateSpeedLabel(this.value)"
                         onchange="setPlaneSpeed(parseInt(this.value))">
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 9px; color: #888; margin-top: 4px; padding: 0 5px;">
+                <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 9px; color: var(--fg-muted); margin-top: 2px; padding: 0 2px;">
                     <span>SLOW</span>
                     <span>NORM</span>
                     <span>FAST</span>
@@ -1579,14 +1611,13 @@
                 <button class="btn-green" onclick="setStatus('taxi')">TAXI</button>
                 <button id="btn-fly" class="btn-blue" onclick="setStatus('fly')">FLY</button>
                 <button class="btn-yellow" onclick="setStatus('stop')">HOLD</button>
-                <button id="btn-untrack-single" class="btn-action"
-                    style="background: linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(50, 50, 50, 0.6)); border-color: #888; color: #aaa;"
+                <button id="btn-untrack-single" class="btn-action" style="margin: 0;"
                     onclick="untrackSelectedPlane(this)">UNTRACK</button>
                 <button id="btn-kill-single" class="btn-red" onclick="killSelectedPlane(this)">KILL</button>
             </div>
             <div id="panel-route-tools">
-                <div style="margin-top: 15px; font-size: 10px; color: #888;">FLIGHT PATH / TELEPORT</div>
-                <div class="btn-row">
+                <div style="margin-top: 8px; font-size: 10px; font-weight: 600; letter-spacing: 0.08em; color: var(--fg-muted);">FLIGHT PATH / TELEPORT</div>
+                <div class="btn-row" style="margin-top: 4px;">
                     <button class="btn-clear-route" style="flex: 1;" onclick="clearRoute()">CLEAR ROUTE</button>
                     <button class="btn-tp" style="flex: 2;" onclick="teleportToLast()"
                         title="TP to last selected point">TP AIRCRAFT TO LAST WAYPOINT</button>
@@ -1594,8 +1625,6 @@
             </div>
         </div>
     </div>
-
-
 
     <div id="notif">DATA SENT</div>
 
@@ -1673,15 +1702,11 @@
             const btn = document.getElementById('btn-spawn-mode');
             if (aircraftSpawnMode) {
                 btn.innerText = "SPAWN AIRCRAFT: ON";
-                btn.style.backgroundColor = '#ffaa00';
-                btn.style.color = '#000';
-                btn.style.boxShadow = '0 0 10px rgba(255, 170, 0, 0.4)';
-                if (creatorMode) toggleCreatorMode(); // Disable creator mode if it was on
+                btn.classList.add('is-active-orange');
+                if (creatorMode) toggleCreatorMode();
             } else {
                 btn.innerText = "SPAWN AIRCRAFT: OFF";
-                btn.style.backgroundColor = '';
-                btn.style.color = '';
-                btn.style.boxShadow = '';
+                btn.classList.remove('is-active-orange');
             }
         }
 
@@ -1689,9 +1714,7 @@
             creatorMode = !creatorMode;
             const btn = document.getElementById('btn-creator');
             if (btn) {
-                btn.style.backgroundColor = creatorMode ? '#ffaa00' : '';
-                btn.style.color = creatorMode ? '#000' : '';
-                btn.style.boxShadow = creatorMode ? '0 0 10px rgba(255, 170, 0, 0.4)' : '';
+                btn.classList.toggle('is-active-orange', creatorMode);
             }
             if (creatorMode && aircraftSpawnMode) toggleAircraftSpawnMode();
         }
@@ -1700,9 +1723,7 @@
             debugMode = !debugMode;
             const btn = document.getElementById('btn-debug');
             if (btn) {
-                btn.style.backgroundColor = debugMode ? '#5cadff' : '';
-                btn.style.color = debugMode ? '#000' : '';
-                btn.style.boxShadow = debugMode ? '0 0 10px rgba(92, 173, 255, 0.4)' : '';
+                btn.classList.toggle('is-active-orange', debugMode);
             }
         }
 
@@ -2151,16 +2172,14 @@
             const scoreDisplay = document.getElementById('current-score');
             if (!scoreDisplay) return;
             scoreDisplay.innerText = currentStudentScore;
+            scoreDisplay.style.textShadow = 'none';
 
             if (currentStudentScore >= 80) {
-                scoreDisplay.style.color = '#00ff66';
-                scoreDisplay.style.textShadow = '0 0 10px rgba(0,255,102,0.4)';
+                scoreDisplay.style.color = '#30d158';
             } else if (currentStudentScore >= 50) {
-                scoreDisplay.style.color = '#fca311';
-                scoreDisplay.style.textShadow = '0 0 10px rgba(252,163,17,0.4)';
+                scoreDisplay.style.color = '#ff9f0a';
             } else {
-                scoreDisplay.style.color = '#ff5555';
-                scoreDisplay.style.textShadow = '0 0 10px rgba(255,85,85,0.4)';
+                scoreDisplay.style.color = '#ff453a';
             }
 
             renderScoreLog();
@@ -2222,7 +2241,7 @@
             logContainer.innerHTML = '';
 
             if (scoreHistory.length === 0) {
-                logContainer.innerHTML = '<div style="color: #556677; text-align: center; font-style: italic; margin-top: 10px;">No deductions yet.</div>';
+                logContainer.innerHTML = '<div style="color: var(--fg-muted); text-align: center; margin-top: 12px; font-size: 11px;">No deductions yet.</div>';
                 return;
             }
 
@@ -2231,15 +2250,16 @@
                 const entry = document.createElement('div');
                 entry.style.display = 'flex';
                 entry.style.justifyContent = 'space-between';
-                entry.style.alignItems = 'flex-start';
-                entry.style.background = 'rgba(255, 85, 85, 0.1)';
-                entry.style.borderLeft = '2px solid #ff5555';
-                entry.style.padding = '4px 6px';
-                entry.style.borderRadius = '0 4px 4px 0';
+                entry.style.alignItems = 'center';
+                entry.style.background = '#18181b';
+                entry.style.borderLeft = '2.5px solid #ff453a';
+                entry.style.padding = '6px 8px';
+                entry.style.borderRadius = '8px';
+                entry.style.boxShadow = 'inset 0 0 0 1px rgba(255,255,255,0.05)';
 
                 entry.innerHTML = `
-                    <div style="flex: 1; word-break: break-word; padding-right: 5px; color: #ccc;">${item.reason}</div>
-                    <div style="color: #ff5555; font-weight: bold; font-family: 'JetBrains Mono', monospace;">-${item.points}</div>
+                    <div style="flex: 1; word-break: break-word; padding-right: 6px; color: #d4d4d8;">${item.reason}</div>
+                    <div style="color: #ff6961; font-weight: 600; font-family: var(--font-mono);">-${item.points}</div>
                 `;
                 logContainer.appendChild(entry);
             }
@@ -2319,7 +2339,7 @@
                         planes.push(serverPlane);
 
                         // Newly Spawned Puff
-                        visualEffects.push({ type: 'puff', wx: serverPlane.currentX, wz: serverPlane.currentZ, progress: 0, speed: 0.03, maxRadius: 50, r: 150, g: 255, b: 150 });
+                        visualEffects.push({ type: 'puff', wx: serverPlane.currentX, wz: serverPlane.currentZ, progress: 0, speed: 0.03, maxRadius: 50, r: 48, g: 209, b: 88 });
 
                         // Clear ghost planes when a real plane arrives
                         ghostPlanes = [];
@@ -2330,7 +2350,7 @@
                 // Deleted Planes Puff
                 planes.forEach(p => {
                     if (!activeIDs.includes(p.id)) {
-                        visualEffects.push({ type: 'puff', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.03, maxRadius: 50, r: 255, g: 100, b: 100 });
+                        visualEffects.push({ type: 'puff', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.03, maxRadius: 50, r: 255, g: 69, b: 58 });
                     }
                 });
 
@@ -2376,13 +2396,7 @@
                         ['arrival', 'departure', 'local', 'ground'].forEach(cat => {
                             let btn = document.getElementById('btn-cat-' + cat);
                             if (btn) {
-                                if (p.category === cat) {
-                                    btn.style.backgroundColor = '#5cadff';
-                                    btn.style.color = '#fff';
-                                } else {
-                                    btn.style.backgroundColor = '';
-                                    btn.style.color = '';
-                                }
+                                btn.classList.toggle('is-active-orange', p.category === cat);
                             }
                         });
 
@@ -2396,15 +2410,8 @@
                         if (p.category === 'departure' || p.category === 'local') {
                             startupRow.style.display = 'flex';
                             let btnS = document.getElementById('btn-startup');
-                            if (p.started_up) {
-                                btnS.style.backgroundColor = '#FFCC00';
-                                btnS.style.color = '#000';
-                                btnS.innerText = 'MARK AS SHUT DOWN';
-                            } else {
-                                btnS.style.backgroundColor = '';
-                                btnS.style.color = '';
-                                btnS.innerText = 'MARK AS STARTED UP';
-                            }
+                            btnS.classList.toggle('is-active-gold', !!p.started_up);
+                            btnS.innerText = p.started_up ? 'MARK AS SHUT DOWN' : 'MARK AS STARTED UP';
                         } else {
                             startupRow.style.display = 'none';
                         }
@@ -2643,7 +2650,7 @@
             } else {
                 autoSelect.style.display = 'none';
                 if (btnRow) btnRow.style.display = 'flex';
-                strip.style.display = 'block';
+                strip.style.display = 'grid';
                 infoEdit.style.display = 'flex';
                 if (infoEdit2) infoEdit2.style.display = 'flex';
                 routeTools.style.display = 'block';
@@ -2688,7 +2695,7 @@
                 let themeClass = 'theme-' + cat;
 
                 let isGroundVeh = (p.entity_type === 'automobile');
-                let startedTag = (p.started_up && (cat === 'departure' || cat === 'local')) ? ' <span style="color:#FFCC00; font-size:10px;">[S]</span>' : '';
+                let startedTag = (p.started_up && (cat === 'departure' || cat === 'local')) ? ' <span style="color:#f2c14e; font-size:10px; font-weight:600;">[S]</span>' : '';
 
                 let detailHtml = isGroundVeh ? '' : `
                     <div class="strip-details">
@@ -2782,7 +2789,7 @@
         }
 
         function draw() {
-            ctx.fillStyle = "#090a0c"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#09090b"; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             // Draw Interaction Animations (under the map)
             visualEffects.forEach(eff => {
@@ -2791,29 +2798,27 @@
                     ctx.beginPath();
                     ctx.arc(s.x, s.y, eff.maxRadius * eff.progress * zoomLevel, 0, Math.PI * 2);
                     ctx.strokeStyle = `rgba(${eff.r}, ${eff.g}, ${eff.b}, ${1.0 - eff.progress})`;
-                    ctx.lineWidth = 3 - (eff.progress * 2);
+                    ctx.lineWidth = 2.5 - (eff.progress * 1.5);
                     ctx.stroke();
                 } else if (eff.type === 'spawnLine') {
                     let s = worldToScreen(eff.wx, eff.wz);
                     ctx.beginPath();
                     ctx.moveTo(s.x, 0); ctx.lineTo(s.x, canvas.height);
                     ctx.moveTo(0, s.y); ctx.lineTo(canvas.width, s.y);
-                    ctx.strokeStyle = `rgba(${eff.r}, ${eff.g}, ${eff.b}, ${0.5 * (1.0 - eff.progress)})`;
+                    ctx.strokeStyle = `rgba(${eff.r}, ${eff.g}, ${eff.b}, ${0.45 * (1.0 - eff.progress)})`;
                     ctx.lineWidth = 1;
                     ctx.stroke();
                 } else if (eff.type === 'puff') {
                     let s = worldToScreen(eff.wx, eff.wz);
                     ctx.beginPath();
-                    // Ease-out curve for growth
                     let rProgress = 1 - Math.pow(1 - eff.progress, 3);
                     ctx.arc(s.x, s.y, eff.maxRadius * rProgress * zoomLevel, 0, Math.PI * 2);
-                    ctx.fillStyle = `rgba(${eff.r}, ${eff.g}, ${eff.b}, ${0.6 * (1.0 - eff.progress)})`;
+                    ctx.fillStyle = `rgba(${eff.r}, ${eff.g}, ${eff.b}, ${0.5 * (1.0 - eff.progress)})`;
                     ctx.fill();
                 }
             });
 
             if (chartLoaded) {
-                // Smoothly lerp chart opacity
                 chartConfig.opacity += (targetChartOpacity - chartConfig.opacity) * 0.03;
                 ctx.save(); ctx.globalAlpha = chartConfig.opacity;
                 const c = worldToScreen(chartConfig.x, chartConfig.z);
@@ -2824,26 +2829,22 @@
 
             // Draw Rain Particles & Splashes
             if (rainParticles.length > 0 || rainSplashes.length > 0) {
-                ctx.strokeStyle = "rgba(100, 150, 200, 0.4)";
+                ctx.strokeStyle = "rgba(161, 160, 171, 0.32)";
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 rainParticles.forEach(p => {
                     ctx.moveTo(p.x, p.y);
-                    ctx.lineTo(p.x - p.speed * 0.2, p.y - p.length); // Slight angle
+                    ctx.lineTo(p.x - p.speed * 0.2, p.y - p.length);
                 });
                 ctx.stroke();
 
-                ctx.fillStyle = "rgba(150, 200, 255, 0.6)";
+                ctx.fillStyle = "rgba(212, 212, 216, 0.5)";
                 rainSplashes.forEach(s => {
                     ctx.globalAlpha = s.life;
                     ctx.fillRect(s.x, s.y, 2, 2);
                 });
                 ctx.globalAlpha = 1.0;
             }
-
-            // drawGrid();
-
-            // Waypoints and routes are now drawn after planes to keep them visible when overlapping
 
             planes.forEach(plane => {
                 const p = worldToScreen(plane.currentX, plane.currentZ);
@@ -2858,67 +2859,50 @@
                 // 1. Draw Aircraft or Car
                 ctx.save(); ctx.translate(p.x, p.y);
                 ctx.rotate((plane.heading) * Math.PI / 180);
-                let color = '#556677';
+                let color = '#71717a';
                 let cat = plane.category || 'undefined';
-                if (cat === 'arrival') color = '#ffcc00';
-                else if (cat === 'departure') color = '#00d2ff';
-                else if (cat === 'local') color = '#ffffff';
-                else if (cat === 'ground') color = '#556677';
-                else if (cat === 'undefined') color = '#888888';
+                if (cat === 'arrival') color = '#f2c14e';
+                else if (cat === 'departure') color = '#4da3ff';
+                else if (cat === 'local') color = '#f5f5f7';
+                else if (cat === 'ground') color = '#71717a';
+                else if (cat === 'undefined') color = '#fc4c01';
 
                 ctx.fillStyle = color;
 
-                let planeLabel = plane.custom_callsign || plane.callsign || plane.id;
-
                 if (plane.entity_type === 'automobile') {
-                    // Draw a car shape
                     let s = Math.max(0.7, zoomLevel) * 0.5;
                     ctx.beginPath();
                     ctx.roundRect(-6 * s, -10 * s, 12 * s, 20 * s, 3 * s);
                     ctx.fill();
 
-                    // Shape outline for hover/selection/undefined auto
                     if (isUndefinedAuto) {
                         let pulse = 0.5 + 0.5 * Math.sin(Date.now() / 300);
-                        ctx.strokeStyle = `rgba(255, 180, 0, ${0.4 + pulse * 0.6})`;
-                        ctx.shadowBlur = 10 + pulse * 15;
-                        ctx.shadowColor = "#ffaa00";
+                        ctx.strokeStyle = `rgba(252, 76, 1, ${0.4 + pulse * 0.6})`;
+                        ctx.shadowBlur = 8 + pulse * 10;
+                        ctx.shadowColor = "#fc4c01";
                         ctx.lineWidth = 2 + pulse;
                         ctx.stroke();
                     } else if (glow > 0.01) {
-                        if (isSelected) {
-                            ctx.strokeStyle = `rgba(255, 255, 255, ${glow})`;
-                            ctx.shadowColor = "#ffffff";
-                        } else {
-                            ctx.strokeStyle = `rgba(180, 180, 180, ${glow})`;
-                            ctx.shadowColor = "#aaaaaa";
-                        }
-                        ctx.shadowBlur = glow * 12;
+                        ctx.strokeStyle = isSelected ? `rgba(252, 76, 1, ${glow})` : `rgba(245, 245, 247, ${glow})`;
+                        ctx.shadowColor = isSelected ? "#fc4c01" : "#ffffff";
+                        ctx.shadowBlur = glow * 10;
                         ctx.lineWidth = 1.5 + glow;
                         ctx.stroke();
                     }
 
-                    // Lightbar
-                    ctx.fillStyle = "#ffaa00";
+                    ctx.fillStyle = "#f2c14e";
                     ctx.fillRect(-3 * s, -2 * s, 6 * s, 2 * s);
                 } else {
-                    // Draw normal aircraft shape
                     let s = Math.max(0.7, zoomLevel) * 0.5;
                     ctx.beginPath();
                     ctx.moveTo(0, -12 * s); ctx.lineTo(8 * s, 10 * s); ctx.lineTo(0, 6 * s); ctx.lineTo(-8 * s, 10 * s);
                     ctx.closePath();
                     ctx.fill();
 
-                    // Shape outline for hover/selection
                     if (glow > 0.01) {
-                        if (isSelected) {
-                            ctx.strokeStyle = `rgba(255, 255, 255, ${glow})`;
-                            ctx.shadowColor = "#ffffff";
-                        } else {
-                            ctx.strokeStyle = `rgba(180, 180, 180, ${glow})`;
-                            ctx.shadowColor = "#aaaaaa";
-                        }
-                        ctx.shadowBlur = glow * 12;
+                        ctx.strokeStyle = isSelected ? `rgba(252, 76, 1, ${glow})` : `rgba(245, 245, 247, ${glow})`;
+                        ctx.shadowColor = isSelected ? "#fc4c01" : "#ffffff";
+                        ctx.shadowBlur = glow * 10;
                         ctx.lineWidth = 1.5 + glow;
                         ctx.stroke();
                     }
@@ -2927,13 +2911,13 @@
 
                 let isUndefinedAutoLabel = plane.entity_type === 'automobile' && !plane.custom_callsign;
                 let label = isUndefinedAutoLabel ? '⚠ DEFINE' : (plane.custom_callsign || plane.callsign || plane.id);
-                ctx.font = "bold 11px 'Segoe UI', sans-serif";
+                ctx.font = "600 11px 'JetBrains Mono', monospace";
                 let tm = ctx.measureText(label);
-                let boxW = tm.width + 14; let boxH = 22;
-                let boxR = 4; // corner radius
+                let boxW = tm.width + 22; let boxH = 22;
+                let boxR = 7;
 
-                // 2. Draw Leader Line (if dragged far enough)
-                ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+                // 2. Draw Leader Line
+                ctx.strokeStyle = isSelected ? "rgba(252, 76, 1, 0.5)" : "rgba(255, 255, 255, 0.22)";
                 ctx.lineWidth = 1;
 
                 let cx = labelX + boxW / 2;
@@ -2952,81 +2936,52 @@
                     ctx.stroke();
                 }
 
-                // 3. Draw Label Box
-
-                // Save rect for hit testing
+                // 3. Draw RareUI Tactile Label Pill
                 plane.labelRect = { x: labelX - 1, y: labelY - 1, w: boxW + 2, h: boxH + 2 };
 
-                // --- GLASS BACKGROUND ---
                 ctx.save();
                 ctx.beginPath();
                 ctx.roundRect(labelX, labelY, boxW, boxH, boxR);
                 ctx.clip();
 
-                // Glass Backdrop Gradient
-                let bgGrad = ctx.createLinearGradient(labelX, labelY, labelX, labelY + boxH);
-                if (currentWeather === 'clear') {
-                    bgGrad.addColorStop(0, 'rgba(40, 55, 75, 0.45)');
-                    bgGrad.addColorStop(1, 'rgba(25, 35, 50, 0.35)');
-                } else {
-                    bgGrad.addColorStop(0, 'rgba(20, 30, 45, 0.4)');
-                    bgGrad.addColorStop(1, 'rgba(10, 15, 25, 0.3)');
-                }
-                ctx.fillStyle = bgGrad;
-                if (isUndefinedAutoLabel) ctx.fillStyle = 'rgba(40, 25, 0, 0.9)';
+                ctx.fillStyle = isUndefinedAutoLabel
+                    ? 'rgba(40, 18, 10, 0.92)'
+                    : (isSelected ? 'rgba(32, 32, 36, 0.94)' : 'rgba(20, 20, 23, 0.88)');
                 ctx.fill();
-
-                // Diagonal Sheen (Reflection)
-                let sheenX = (Date.now() / 4000) % 2 - 1; // Cycle -1 to 1
-                let sheenGrad = ctx.createLinearGradient(labelX + sheenX * boxW, labelY, labelX + (sheenX + 0.5) * boxW, labelY + boxH);
-                sheenGrad.addColorStop(0, 'transparent');
-                sheenGrad.addColorStop(0.5, currentWeather === 'clear' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.04)');
-                sheenGrad.addColorStop(1, 'transparent');
-                ctx.fillStyle = sheenGrad;
-                if (!isUndefinedAutoLabel) ctx.fill();
-
                 ctx.restore();
 
-                // Border & Highlights
+                // Hairline Border
                 ctx.beginPath();
                 ctx.roundRect(labelX, labelY, boxW, boxH, boxR);
-                let borderColor = isUndefinedAutoLabel ? `rgba(255, 170, 0, ${0.5 + 0.5 * Math.sin(Date.now() / 300)})` : color;
+                let borderColor = isUndefinedAutoLabel
+                    ? `rgba(252, 76, 1, ${0.5 + 0.5 * Math.sin(Date.now() / 300)})`
+                    : (isSelected ? 'rgba(252, 76, 1, 0.7)' : 'rgba(255, 255, 255, 0.12)');
                 ctx.strokeStyle = borderColor;
                 ctx.lineWidth = 1;
                 ctx.stroke();
 
-                // Top Edge Highlight
-                if (!isUndefinedAutoLabel) {
-                    ctx.beginPath();
-                    ctx.moveTo(labelX + 2, labelY + 0.5);
-                    ctx.lineTo(labelX + boxW - 2, labelY + 0.5);
-                    ctx.strokeStyle = currentWeather === 'clear' ? 'rgba(220, 240, 255, 0.5)' : 'rgba(180, 220, 255, 0.3)';
-                    ctx.lineWidth = 0.8;
-                    ctx.stroke();
-                }
+                // Category Indicator Dot inside Tag
+                ctx.beginPath();
+                ctx.arc(labelX + 8, labelY + boxH / 2, 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = isUndefinedAutoLabel ? '#fc4c01' : color;
+                ctx.fill();
 
                 // Text
-                ctx.fillStyle = isUndefinedAutoLabel ? '#ffaa00' : '#e8e8e8';
-                if (currentWeather === 'clear' && !isUndefinedAutoLabel) ctx.shadowBlur = 4;
-                ctx.shadowColor = 'rgba(0,0,0,0.5)';
-                ctx.fillText(label, labelX + 7, labelY + 15);
-                ctx.shadowBlur = 0;
+                ctx.fillStyle = isUndefinedAutoLabel ? '#fc4c01' : '#f5f5f7';
+                ctx.fillText(label, labelX + 14, labelY + 14.5);
 
-                // --- RAIN DRIP EFFECTS ON TAGS ---
+                // Rain drip effects on tags
                 if (currentWeather === 'rain') {
                     ctx.save();
-                    // Clip to the label box to keep drips inside
                     ctx.beginPath();
                     ctx.roundRect(labelX, labelY, boxW, boxH, boxR);
                     ctx.clip();
 
-                    // Procedural seed based on plane ID
                     let seed = 0;
                     for (let charIdx = 0; charIdx < plane.id.length; charIdx++) {
                         seed += plane.id.charCodeAt(charIdx);
                     }
 
-                    // 1. Falling Streaks (Fast)
                     ctx.lineWidth = 1;
                     for (let i = 0; i < 3; i++) {
                         let localSeed = seed + i * 137;
@@ -3037,7 +2992,7 @@
 
                         let gradient = ctx.createLinearGradient(labelX + xOff, labelY + yPos - 15, labelX + xOff, labelY + yPos);
                         gradient.addColorStop(0, 'transparent');
-                        gradient.addColorStop(1, 'rgba(150, 200, 255, 0.15)');
+                        gradient.addColorStop(1, 'rgba(255, 255, 255, 0.14)');
 
                         ctx.strokeStyle = gradient;
                         ctx.beginPath();
@@ -3046,18 +3001,15 @@
                         ctx.stroke();
                     }
 
-                    // 2. Sliding Droplets (Slow)
                     for (let i = 0; i < 2; i++) {
                         let localSeed = seed + i * 541;
                         let xOff = ((localSeed % 100) / 100) * boxW;
                         let speed = 0.2 + ((localSeed % 5) / 10);
                         let time = (Date.now() / 1000) * speed;
                         let yPos = (time % 1) * boxH;
+                        let alpha = 0.18 + 0.25 * Math.sin(time * 5 + localSeed);
 
-                        // Droplet "pulse" or flicker
-                        let alpha = 0.2 + 0.3 * Math.sin(time * 5 + localSeed);
-
-                        ctx.fillStyle = `rgba(200, 230, 255, ${alpha})`;
+                        ctx.fillStyle = `rgba(220, 230, 245, ${alpha})`;
                         ctx.beginPath();
                         ctx.ellipse(labelX + xOff, labelY + yPos, 1.5, 2.5, 0, 0, Math.PI * 2);
                         ctx.fill();
@@ -3071,8 +3023,8 @@
                 const p = worldToScreen(g.x, g.z);
                 ctx.save();
                 ctx.translate(p.x, p.y);
-                ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 150) * 0.3; // pulsing
-                ctx.fillStyle = '#888888';
+                ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 150) * 0.3;
+                ctx.fillStyle = '#a1a0ab';
                 ctx.beginPath();
                 let s = Math.max(0.7, zoomLevel) * 0.5;
                 ctx.moveTo(0, -12 * s); ctx.lineTo(8 * s, 10 * s); ctx.lineTo(0, 6 * s); ctx.lineTo(-8 * s, 10 * s);
@@ -3082,17 +3034,19 @@
                 let labelX = p.x + 20;
                 let labelY = p.y - 20;
                 let label = "SPAWNING...";
-                ctx.font = "bold 11px sans-serif";
+                ctx.font = "600 10px 'JetBrains Mono', monospace";
                 let tm = ctx.measureText(label);
-                let boxW = tm.width + 8; let boxH = 16;
+                let boxW = tm.width + 12; let boxH = 20;
                 ctx.globalAlpha = 1.0;
-                ctx.fillStyle = "rgba(50, 50, 50, 0.6)";
-                ctx.fillRect(labelX, labelY, boxW, boxH);
-                ctx.strokeStyle = '#888888';
-                ctx.strokeRect(labelX, labelY, boxW, boxH);
-                ctx.fillStyle = "#ffffff";
-                ctx.globalAlpha = 0.3 + Math.sin(Date.now() / 150) * 0.3; // match pulsing
-                ctx.fillText(label, labelX + 4, labelY + 12);
+                ctx.beginPath();
+                ctx.roundRect(labelX, labelY, boxW, boxH, 6);
+                ctx.fillStyle = "rgba(24, 24, 27, 0.85)";
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+                ctx.stroke();
+                ctx.fillStyle = "#f5f5f7";
+                ctx.globalAlpha = 0.35 + Math.sin(Date.now() / 150) * 0.3;
+                ctx.fillText(label, labelX + 6, labelY + 13.5);
                 ctx.globalAlpha = 1.0;
             });
 
@@ -3101,8 +3055,8 @@
                 const p = worldToScreen(wp.x, wp.z); if (isOffScreen(p)) return;
 
                 if (debugMode) {
-                    ctx.fillStyle = '#ffaa00';
-                    ctx.font = '10px monospace';
+                    ctx.fillStyle = '#fc4c01';
+                    ctx.font = "500 10px 'JetBrains Mono', monospace";
                     ctx.shadowBlur = 0;
                     ctx.fillText(wp.id, p.x + 12, p.y - 12);
                 }
@@ -3113,27 +3067,24 @@
                 let isHovered = (wp.id === hoveredWaypointId);
 
                 if (creatorMode && isHovered) {
-                    ctx.shadowBlur = 15;
-                    ctx.fillStyle = 'rgba(255, 50, 50, 1)';
-                    ctx.shadowColor = 'rgba(255, 50, 50, 0.8)';
+                    ctx.shadowBlur = 12;
+                    ctx.fillStyle = '#ff453a';
+                    ctx.shadowColor = 'rgba(255, 69, 58, 0.7)';
                     let rRadius = 2.0 * zoomLevel + (glow * 0.75 * zoomLevel);
                     ctx.arc(p.x, p.y, rRadius, 0, Math.PI * 2);
                 } else {
                     let isGround = (wp.y <= -50);
-                    ctx.shadowBlur = isGround ? (4 + (glow * 3)) : (8 + (glow * 7));
+                    ctx.shadowBlur = isGround ? (3 + (glow * 3)) : (6 + (glow * 6));
 
                     let r, g, b;
-
                     if (isGround) {
-                        // Technical Amber/Orange for ground
-                        r = Math.round(255);
-                        g = Math.round(180 + glow * 75);
-                        b = Math.round(0 + glow * 100);
+                        r = 242;
+                        g = Math.round(193 + glow * 40);
+                        b = Math.round(78 + glow * 80);
                     } else {
-                        // Standard Blue for air
-                        r = Math.round(0 + glow * 255);
-                        g = Math.round(210 + glow * 45);
-                        b = Math.round(255);
+                        r = Math.round(77 + glow * 175);
+                        g = Math.round(163 + glow * 80);
+                        b = 255;
                     }
 
                     ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
@@ -3149,9 +3100,9 @@
             ctx.shadowBlur = 0;
 
             if (buildRoute.length > 0 && routeAnimProgress > 0) {
-                let lineColor = isClearingRoute ? "#ff4444" : "#44ff44";
+                let lineColor = isClearingRoute ? "#ff453a" : "#fc4c01";
                 ctx.strokeStyle = lineColor; ctx.lineWidth = 2.0;
-                ctx.shadowBlur = 12; ctx.shadowColor = lineColor; // Glow Effect
+                ctx.shadowBlur = 8; ctx.shadowColor = lineColor;
                 ctx.beginPath();
 
                 let startP = null;
@@ -3165,7 +3116,7 @@
                     let lastP = startP;
 
                     for (let i = 0; i < buildRoute.length; i++) {
-                        if (routeAnimProgress <= i) break; // Haven't reached drawing this segment yet
+                        if (routeAnimProgress <= i) break;
 
                         let wp = getWaypointById(buildRoute[i]);
                         if (!wp) break;
@@ -3177,28 +3128,26 @@
                         let drawY = lastP.y + (targetP.y - lastP.y) * progressOnThisSegment;
 
                         ctx.lineTo(drawX, drawY);
-                        lastP = targetP; // Store this as last for next iteration if reached
-                        if (progressOnThisSegment < 1.0) break; // Stop tracing further segments until animated
+                        lastP = targetP;
+                        if (progressOnThisSegment < 1.0) break;
                     }
                     ctx.stroke();
                 }
-                ctx.shadowBlur = 0; // reset
+                ctx.shadowBlur = 0;
             } else if (selectedPlane && buildRoute.length === 0) {
                 let planeObj = planes.find(p => p.id === selectedPlane);
                 if (planeObj && planeObj.active_wp_route && planeObj.active_wp_route.length > 0 && planeObj.current_target) {
                     let pathIndex = planeObj.active_wp_route.indexOf(planeObj.current_target);
                     if (pathIndex >= 0) {
-                        ctx.strokeStyle = "rgba(40, 200, 255, 0.7)";
+                        ctx.strokeStyle = "rgba(252, 76, 1, 0.72)";
                         ctx.lineWidth = 1.5;
-                        ctx.setLineDash([8, 8]); // Dashed line for active route
-                        ctx.shadowBlur = 4;
-                        ctx.shadowColor = "rgba(40, 200, 255, 0.5)";
+                        ctx.setLineDash([6, 6]);
+                        ctx.shadowBlur = 0;
                         ctx.beginPath();
 
                         let startP = worldToScreen(planeObj.currentX, planeObj.currentZ);
                         ctx.moveTo(startP.x, startP.y);
 
-                        // Draw to current target, then rest of the route
                         for (let i = pathIndex; i < planeObj.active_wp_route.length; i++) {
                             let wp = getWaypointById(planeObj.active_wp_route[i]);
                             if (wp) {
@@ -3207,8 +3156,7 @@
                             }
                         }
                         ctx.stroke();
-                        ctx.setLineDash([]); // Reset dash
-                        ctx.shadowBlur = 0;
+                        ctx.setLineDash([]);
                     }
                 }
             }
@@ -3625,21 +3573,17 @@
             const wp = getWaypointById(targetID);
             await fetch('/teleport_plane', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plane_tag: selectedPlane, wp_id: targetID }) });
 
-            // Snap plane position instantly (bypass smooth interpolation)
             let p = planes.find(x => x.id === selectedPlane);
             if (p && wp) {
-                // Purple origin puff (where it was)
-                visualEffects.push({ type: 'puff', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.04, maxRadius: 40, r: 180, g: 80, b: 255 });
-                visualEffects.push({ type: 'ripple', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.03, maxRadius: 60, r: 160, g: 60, b: 255 });
+                visualEffects.push({ type: 'puff', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.04, maxRadius: 40, r: 252, g: 76, b: 1 });
+                visualEffects.push({ type: 'ripple', wx: p.currentX, wz: p.currentZ, progress: 0, speed: 0.03, maxRadius: 60, r: 252, g: 76, b: 1 });
 
-                // Instantly snap position
                 p.currentX = wp.x; p.currentZ = wp.z;
                 p.targetX = wp.x; p.targetZ = wp.z;
 
-                // Purple destination effects
-                visualEffects.push({ type: 'puff', wx: wp.x, wz: wp.z, progress: 0, speed: 0.03, maxRadius: 60, r: 200, g: 100, b: 255 });
-                visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.025, maxRadius: 80, r: 180, g: 0, b: 255 });
-                visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.015, maxRadius: 120, r: 140, g: 50, b: 220 });
+                visualEffects.push({ type: 'puff', wx: wp.x, wz: wp.z, progress: 0, speed: 0.03, maxRadius: 60, r: 255, g: 106, b: 31 });
+                visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.025, maxRadius: 80, r: 252, g: 76, b: 1 });
+                visualEffects.push({ type: 'ripple', wx: wp.x, wz: wp.z, progress: 0, speed: 0.015, maxRadius: 120, r: 242, g: 193, b: 78 });
             }
 
             showNotif("TELEPORTING..."); clearRoute(true);
@@ -3659,11 +3603,10 @@
             if (!pendingSpawnCoords || !pendingSpawnCoords.id) return;
             const y = parseInt(document.getElementById('wp-y-slider').value, 10);
             spawnWaypoint(pendingSpawnCoords.x, pendingSpawnCoords.z, pendingSpawnCoords.id, y);
-            staticWaypoints.push({ id: pendingSpawnCoords.id, x: pendingSpawnCoords.x, z: pendingSpawnCoords.z }); // Front-end visualizer does not use Y currently
+            staticWaypoints.push({ id: pendingSpawnCoords.id, x: pendingSpawnCoords.x, z: pendingSpawnCoords.z });
 
-            // Visual spawn effects
-            visualEffects.push({ type: 'spawnLine', wx: pendingSpawnCoords.x, wz: pendingSpawnCoords.z, progress: 0, speed: 0.05, r: 100, g: 255, b: 100 });
-            visualEffects.push({ type: 'ripple', wx: pendingSpawnCoords.x, wz: pendingSpawnCoords.z, progress: 0, speed: 0.03, maxRadius: 60, r: 100, g: 255, b: 100 });
+            visualEffects.push({ type: 'spawnLine', wx: pendingSpawnCoords.x, wz: pendingSpawnCoords.z, progress: 0, speed: 0.05, r: 48, g: 209, b: 88 });
+            visualEffects.push({ type: 'ripple', wx: pendingSpawnCoords.x, wz: pendingSpawnCoords.z, progress: 0, speed: 0.03, maxRadius: 60, r: 48, g: 209, b: 88 });
 
             document.getElementById('creator-spawn-menu').classList.add('hidden');
             pendingSpawnCoords = null;
@@ -3691,7 +3634,7 @@
             notif.style.opacity = 1;
             setTimeout(() => { notif.style.opacity = 0; }, 2000);
 
-            visualEffects.push({ type: 'spawn', wx: x, wz: z, progress: 0, speed: 0.02, maxRadius: 50, r: 0, g: 255, b: 255 });
+            visualEffects.push({ type: 'spawn', wx: x, wz: z, progress: 0, speed: 0.02, maxRadius: 50, r: 252, g: 76, b: 1 });
 
             let ghostId = "GHOST_" + Date.now();
             ghostPlanes.push({ id: ghostId, type: planeType, x: x, z: z, spawnTime: Date.now() });
@@ -3736,22 +3679,16 @@
                 if (tp) { tp.classList.add('hidden'); setTimeout(() => tp.style.display = 'none', 400); }
                 selectedPlane = null;
                 untrackSingleClicks = 0;
-                btn.style.background = 'linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(50, 50, 50, 0.6))';
-                btn.style.color = '#aaa';
-                btn.style.borderColor = '#888';
+                btn.classList.remove('is-active-gold');
                 btn.innerText = 'UNTRACK';
                 return;
             }
-            btn.style.background = 'linear-gradient(135deg, rgba(120, 80, 20, 0.6), rgba(80, 50, 10, 0.8))';
-            btn.style.color = '#ffcc00';
-            btn.style.borderColor = '#cc8800';
+            btn.classList.add('is-active-gold');
             btn.innerText = 'CONFIRM';
             clearTimeout(untrackSingleTimeout);
             untrackSingleTimeout = setTimeout(() => {
                 untrackSingleClicks = 0;
-                btn.style.background = 'linear-gradient(135deg, rgba(80, 80, 80, 0.4), rgba(50, 50, 50, 0.6))';
-                btn.style.color = '#aaa';
-                btn.style.borderColor = '#888';
+                btn.classList.remove('is-active-gold');
                 btn.innerText = 'UNTRACK';
             }, 3000);
         }
@@ -3767,14 +3704,15 @@
                 if (tp) { tp.classList.add('hidden'); setTimeout(() => tp.style.display = 'none', 400); }
                 selectedPlane = null;
                 killSingleClicks = 0;
-                btn.style.backgroundColor = '';
+                btn.style.background = '';
                 btn.innerText = 'KILL';
                 return;
             }
-            btn.style.backgroundColor = '#600';
+            btn.style.background = '#ff453a';
+            btn.style.color = '#ffffff';
             btn.innerText = 'CONFIRM';
             clearTimeout(killSingleTimeout);
-            killSingleTimeout = setTimeout(() => { killSingleClicks = 0; btn.style.backgroundColor = ''; btn.innerText = 'KILL'; }, 3000);
+            killSingleTimeout = setTimeout(() => { killSingleClicks = 0; btn.style.background = ''; btn.style.color = ''; btn.innerText = 'KILL'; }, 3000);
         }
 
         async function killAllPlanes(btn) {
@@ -3783,21 +3721,22 @@
                 showNotif("KILLING ALL AIRCRAFT...");
                 await fetch('/kill_all', { method: 'POST' });
                 killAllClicks = 0;
-                btn.style.backgroundColor = '#844';
+                btn.style.background = '';
                 btn.innerText = 'KILL ALL AIRCRAFT';
                 return;
             }
             if (killAllClicks === 1) {
-                btn.style.backgroundColor = '#622';
+                btn.style.background = '#5a1d1d';
                 btn.innerText = 'ARE YOU SURE?';
             }
             if (killAllClicks === 2) {
-                btn.style.backgroundColor = '#400';
+                btn.style.background = '#ff453a';
+                btn.style.color = '#ffffff';
                 btn.innerText = 'ARE YOU REALLY SURE?';
             }
 
             clearTimeout(killAllTimeout);
-            killAllTimeout = setTimeout(() => { killAllClicks = 0; btn.style.backgroundColor = '#844'; btn.innerText = 'KILL ALL AIRCRAFT'; }, 3000);
+            killAllTimeout = setTimeout(() => { killAllClicks = 0; btn.style.background = ''; btn.style.color = ''; btn.innerText = 'KILL ALL AIRCRAFT'; }, 3000);
         }
 
         async function setWeather(type) {

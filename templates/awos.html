@@ -1,59 +1,189 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Aerodrome Weather Observation System Display">
     <title id="page-title">AWOS Display</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body {
-            background-color: #020617;
-            -webkit-font-smoothing: antialiased;
-            background-image: 
-                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.4) 0%, rgba(2, 6, 23, 1) 100%),
-                linear-gradient(rgba(100, 150, 255, 0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(100, 150, 255, 0.04) 1px, transparent 1px);
-            background-size: 100% 100%, 50px 50px, 50px 50px;
+        :root {
+            --bg-canvas: #09090b;
+            --bg-shell: #121214;
+            --bg-well: #0c0c0e;
+            --fg-primary: #f5f5f7;
+            --fg-secondary: #a1a0ab;
+            --fg-muted: #6e6d78;
+            --accent: #fc4c01;
+            --green: #30d158;
+            --blue: #4da3ff;
+            --red: #ff453a;
+            --shadow-apple:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.075),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+                inset 0 -1px 0 0 rgba(0, 0, 0, 0.45),
+                0 2px 6px rgba(0, 0, 0, 0.35),
+                0 12px 32px rgba(0, 0, 0, 0.45);
+            --shadow-well:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.055),
+                inset 0 2px 10px rgba(0, 0, 0, 0.55);
+            --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
         }
 
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+        * {
+            box-sizing: border-box;
+        }
 
-        .glass-panel {
+        ::selection {
+            background-color: rgba(252, 76, 1, 0.16);
+            color: #fc4c01;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 28px;
+            background-color: var(--bg-canvas);
+            color: var(--fg-primary);
+            font-family: var(--font-sans);
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .awos-grid {
+            flex: 1;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        .awos-col {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .rare-shell {
             position: relative;
-            background: rgba(15, 25, 40, 0.65);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(140, 190, 255, 0.25);
-            border-top: 1px solid rgba(220, 240, 255, 0.45);
-            box-shadow: 
-                0 20px 50px rgba(0, 0, 0, 0.7), 
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                0 0 60px rgba(100, 170, 255, 0.05);
+            background: var(--bg-shell);
+            border-radius: 28px;
+            padding: 22px;
+            box-shadow: var(--shadow-apple);
             overflow: hidden;
         }
 
-        .glass-panel::before {
+        .rare-shell::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(ellipse at 15% 10%, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+            inset: 0;
+            background: radial-gradient(120% 75% at 50% -10%, rgba(255, 255, 255, 0.055), transparent 60%);
             pointer-events: none;
+            z-index: 0;
+        }
+
+        .rare-shell > * {
+            position: relative;
             z-index: 1;
         }
 
-        .glass-panel::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 10%; width: 80%; height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(180, 220, 255, 0.45), transparent);
-            pointer-events: none;
-            z-index: 2;
+        .readout-recessed {
+            background: var(--bg-well);
+            border-radius: 18px;
+            box-shadow: var(--shadow-well);
         }
 
-        /* Compass specific styles */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+        }
+
+        .section-title-group {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .section-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .section-dot.blue {
+            background: var(--blue);
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .text-label-tech {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            color: var(--fg-muted);
+        }
+
+        .digital-font {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Compass */
+        .compass-stage {
+            padding: 36px;
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 460px;
+        }
+
+        .bearing-overlay {
+            position: absolute;
+            top: 24px;
+            right: 28px;
+            text-align: right;
+            pointer-events: none;
+        }
+
+        .bearing-val {
+            font-size: 44px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--fg-primary);
+            line-height: 1.05;
+            margin-top: 2px;
+        }
+
         .compass-container {
             position: relative;
-            width: 380px; 
-            height: 380px;
+            width: 390px;
+            height: 390px;
             margin: 0 auto;
             user-select: none;
         }
@@ -63,138 +193,119 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 300px; 
-            height: 300px;
+            width: 312px;
+            height: 312px;
             border-radius: 50%;
-            border: 6px solid #1e293b;
-            background: radial-gradient(circle, #0f172a 0%, #020617 100%);
-            box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.5);
+            background: radial-gradient(circle, #141417 0%, #09090b 100%);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+                inset 0 4px 20px rgba(0, 0, 0, 0.7),
+                0 8px 32px rgba(0, 0, 0, 0.65);
             z-index: 1;
         }
 
         .compass-number {
             position: absolute;
-            color: #94a3b8;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 700;
-            font-size: 16px;
+            color: var(--fg-muted);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 14px;
             transform-origin: center;
             user-select: none;
             pointer-events: none;
             z-index: 10;
         }
-        
+
         .compass-number.cardinal {
-            color: #f97316;
-            font-size: 22px;
-            font-weight: 900;
-            text-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
-        }
-
-        /* Labels */
-        .text-label-tech {
-            font-size: 12px;
-            text-transform: uppercase;
-            font-weight: 800;
-            letter-spacing: 0.15em;
-            color: #475569;
-        }
-
-        .readout-recessed {
-            background: rgba(0, 0, 0, 0.4) !important;
-            border: 1px solid rgba(0, 0, 0, 0.6);
-            border-radius: 16px;
-            box-shadow: 
-                inset 0 8px 16px rgba(0, 0, 0, 1),
-                inset 0 1px 4px rgba(0, 0, 0, 0.8),
-                0 1px 0 rgba(255, 255, 255, 0.08);
+            color: var(--accent);
+            font-size: 18px;
+            font-weight: 700;
         }
 
         .runway-line {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 24px; 
-            height: 280px; 
-            background: rgba(30, 41, 59, 0.5); 
-            border: 2px solid rgba(148, 163, 184, 0.2);
-            transform: translate(-50%, -50%) rotate(var(--rwy-rot, 30deg)); 
+            width: 24px;
+            height: 276px;
+            background: #1d1d21;
+            border-radius: 4px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+            transform: translate(-50%, -50%) rotate(var(--rwy-rot, 30deg));
             pointer-events: none;
-            z-index: 2; 
-            border-radius: 2px;
+            z-index: 2;
         }
-        
+
         .runway-line::after {
             content: '';
             position: absolute;
-            top: 5px;
-            bottom: 5px;
+            top: 8px;
+            bottom: 8px;
             left: 50%;
             transform: translateX(-50%);
-            width: 3px;
-            background: repeating-linear-gradient(to bottom, 
-                rgba(255,255,255,0.4) 0, 
-                rgba(255,255,255,0.4) 12px, 
-                transparent 12px, 
+            width: 2px;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(255, 255, 255, 0.35) 0,
+                rgba(255, 255, 255, 0.35) 12px,
+                transparent 12px,
                 transparent 24px
             );
         }
 
-        .runway-label-top {
-            position: absolute;
-            top: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: #fff;
-            font-size: 14px;
-            font-weight: 800;
-            font-family: 'JetBrains Mono', monospace;
-        }
+        .runway-label-top,
         .runway-label-bottom {
             position: absolute;
-            bottom: -20px;
             left: 50%;
+            color: var(--fg-primary);
+            font-size: 12px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        .runway-label-top {
+            top: -22px;
+            transform: translateX(-50%);
+        }
+
+        .runway-label-bottom {
+            bottom: -22px;
             transform: translateX(-50%) rotate(180deg);
-            color: #fff;
-            font-size: 14px;
-            font-weight: 800;
-            font-family: 'JetBrains Mono', monospace;
         }
 
         .compass-arrow {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 6px;
-            height: 145px;
+            width: 4px;
+            height: 140px;
             background: transparent;
-            transform-origin: bottom center; 
+            transform-origin: bottom center;
             transform: translate(-50%, -100%) rotate(0deg);
             pointer-events: none;
             z-index: 20;
-            transition: transform 2s cubic-bezier(0.4, 0, 0.2, 1); 
+            transition: transform 1.6s var(--ease-out-expo);
         }
 
         .arrow-head {
             position: absolute;
-            top: -15px;
-            left: -10px;
-            width: 0; 
-            height: 0; 
-            border-left: 13px solid transparent;
-            border-right: 13px solid transparent;
-            border-bottom: 25px solid #ff7700; 
-            filter: drop-shadow(0 0 10px rgba(255, 119, 0, 0.5));
+            top: -13px;
+            left: -9px;
+            width: 0;
+            height: 0;
+            border-left: 11px solid transparent;
+            border-right: 11px solid transparent;
+            border-bottom: 20px solid var(--accent);
         }
-        
+
         .arrow-shaft {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: #ff7700;
-            box-shadow: 0 0 30px rgba(255, 119, 0, 0.4);
+            background: var(--accent);
+            border-radius: 2px;
         }
 
         .speed-dial {
@@ -202,167 +313,273 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 130px;
-            height: 130px;
-            background: #020617;
-            border: 4px solid #1e293b;
+            width: 122px;
+            height: 122px;
+            background: #101013;
             border-radius: 50%;
             z-index: 30;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 50px rgba(0,0,0,1), inset 0 0 20px rgba(0,0,0,0.5);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+                0 8px 28px rgba(0, 0, 0, 0.85);
         }
 
-        .digital-font {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 800;
+        .speed-dial-val {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+            margin-top: 2px;
         }
 
-        /* Status Lights */
+        /* Status & Zulu Bar */
+        .status-bar {
+            padding: 22px 26px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+        }
+
+        .status-online {
+            background: rgba(48, 209, 88, 0.14);
+            color: var(--green);
+            box-shadow: inset 0 0 0 1px rgba(48, 209, 88, 0.25);
+        }
+
+        .status-offline {
+            background: rgba(255, 69, 58, 0.14);
+            color: var(--red);
+            box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.25);
+        }
+
         .led {
-            width: 8px;
-            height: 8px;
+            width: 7px;
+            height: 7px;
             border-radius: 50%;
-            background: #334155;
+            background: #3f3f46;
             display: inline-block;
+            transition: background 0.15s ease;
         }
-        .led.on { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+
+        .led.on {
+            background: var(--green);
+        }
+
+        .zulu-clock-lg {
+            font-size: 46px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--fg-primary);
+            line-height: 1;
+        }
+
+        /* Telemetry Cards */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            flex: 1;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .telemetry-well {
+            padding: 24px 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .telemetry-val-xl {
+            font-size: 62px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1;
+        }
+
+        .telemetry-val-lg {
+            font-size: 42px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            line-height: 1;
+        }
+
+        .telemetry-val-md {
+            font-size: 34px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1;
+        }
+
+        .unit-tag {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: var(--fg-muted);
+        }
+
+        @media (max-width: 1024px) {
+            .awos-grid {
+                grid-template-columns: 1fr;
+            }
+        }
 
         @media (max-width: 640px) {
-            .compass-container { zoom: 0.7; }
-            .glass-panel { padding: 1.25rem !important; min-height: auto !important; }
-            .readout-recessed { padding: 1rem !important; }
-            .gap-10 { gap: 1.5rem !important; }
-            .text-5xl, .text-6xl { font-size: 2.25rem !important; }
-            .text-7xl { font-size: 3rem !important; }
-            #disp-utc-clock { font-size: 2.25rem !important; }
-            body { padding: 1rem !important; }
+            body { padding: 14px; }
+            .compass-container { zoom: 0.72; }
+            .grid-3 { grid-template-columns: 1fr; }
+            .status-bar { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .zulu-clock-lg { font-size: 32px; }
+            .telemetry-val-xl { font-size: 44px; }
         }
     </style>
 </head>
-<body class="text-slate-200 min-h-screen flex flex-col p-10 sm:p-4 font-sans overflow-x-hidden overflow-y-auto">
+<body>
 
-    <!-- Main Content Area -->
-    <div class="flex-1 w-full grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
-        
+    <div class="awos-grid">
         <!-- LEFT COLUMN: Compass & Clock -->
-        <div class="flex flex-col gap-10">
-            <div class="glass-panel p-10 rounded-[2.5rem] flex flex-col items-center justify-center min-h-[500px]">
-                <div class="readout-recessed p-12 w-full flex flex-col items-center justify-center relative overflow-visible h-full">
-                    <!-- Direction Text Readout -->
-                    <div class="absolute top-8 right-10 text-right pointer-events-none">
-                        <div class="text-[10px] text-slate-500 font-black tracking-[0.3em] mb-[-2px] uppercase">WIND BEARING</div>
-                        <div id="dir-text" class="text-5xl font-black text-white digital-font" style="text-shadow: 0 0 20px rgba(255,255,255,0.2);">---°</div>
+        <div class="awos-col">
+            <div class="rare-shell" style="display: flex; flex-direction: column; flex: 1;">
+                <div class="readout-recessed compass-stage">
+                    <div class="bearing-overlay">
+                        <div class="text-label-tech">WIND BEARING</div>
+                        <div id="dir-text" class="bearing-val digital-font">---°</div>
                     </div>
 
-                    <!-- Compass -->
-                    <div class="compass-container relative z-10" id="compass">
+                    <div class="compass-container" id="compass">
                         <div class="compass-ring">
                             <div class="runway-line">
                                 <span class="runway-label-top" id="rwy-top">03</span>
                                 <span class="runway-label-bottom" id="rwy-bot">21</span>
                             </div>
                         </div>
-                        <div id="compass-face" class="absolute inset-0 pointer-events-none"></div>
+                        <div id="compass-face" style="position: absolute; inset: 0; pointer-events: none;"></div>
                         <div class="compass-arrow" id="windArrow">
                             <div class="arrow-shaft"></div>
                             <div class="arrow-head"></div>
                         </div>
                         <div class="speed-dial">
-                            <span class="text-xs text-slate-500 font-black mb-[-2px] tracking-widest">KTS</span>
-                            <span id="compass-speed-display" class="text-4xl font-black text-orange-500 digital-font">--</span>
+                            <span class="text-label-tech" style="font-size: 10px;">KTS</span>
+                            <span id="compass-speed-display" class="speed-dial-val digital-font">--</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Clock & Status (Combined bottom bar) -->
-            <div class="readout-recessed p-8 flex justify-between items-center bg-black/40 border-none">
-                <div class="flex flex-col">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-slate-500 font-black tracking-[0.4em] text-[10px] uppercase">STATION STATUS: <span id="conn-status" class="text-red-500">OFFLINE</span></span>
-                        <div id="led-rx" class="led" style="width: 6px; height: 6px;"></div>
+            <!-- Clock & Status -->
+            <div class="rare-shell status-bar">
+                <div style="display: flex; flex-direction: column; gap: 5px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="text-label-tech">STATION STATUS</span>
+                        <span id="conn-status" class="status-pill status-offline">OFFLINE</span>
+                        <div id="led-rx" class="led"></div>
                     </div>
-                    <span class="text-slate-500 font-black tracking-[0.4em] text-[10px] uppercase">ZULU TIME REFERENCE</span>
+                    <span class="text-label-tech" style="color: rgba(255,255,255,0.32);">ZULU TIME REFERENCE</span>
                 </div>
-                <span id="disp-utc-clock" class="text-6xl font-black text-white digital-font tracking-tight">00:00:00 Z</span>
+                <span id="disp-utc-clock" class="zulu-clock-lg digital-font">00:00:00 Z</span>
             </div>
         </div>
 
         <!-- RIGHT COLUMN: Telemetry -->
-        <div class="flex flex-col gap-10">
-            
+        <div class="awos-col">
             <!-- Wind Dynamics -->
-            <div class="glass-panel p-8 rounded-[2rem] flex flex-col gap-8">
-                <header class="flex items-center gap-4 border-b border-white/5 pb-4">
-                    <div class="w-2 h-6 bg-orange-500 rounded-full shadow-[0_0_15px_#f97316]"></div>
-                    <h2 class="text-white text-sm font-black tracking-[0.4em] uppercase">WIND DYNAMICS</h2>
+            <div class="rare-shell" style="display: flex; flex-direction: column; flex: 1;">
+                <header class="section-header">
+                    <div class="section-title-group">
+                        <div class="section-dot"></div>
+                        <h2 class="section-title">Wind Dynamics</h2>
+                    </div>
+                    <span class="text-label-tech">ANEMOMETER</span>
                 </header>
-                
-                <div class="grid grid-cols-2 gap-8">
-                    <div class="readout-recessed p-8 flex flex-col items-center">
-                        <span class="text-label-tech mb-4">SURFACE VELOCITY</span>
-                        <div class="flex items-baseline gap-4">
-                            <span id="card-windSpd" class="text-7xl font-black text-orange-500 digital-font">--</span>
-                            <span class="text-sm text-orange-500/50 font-black tracking-widest">KTS</span>
+
+                <div class="grid-2">
+                    <div class="readout-recessed telemetry-well">
+                        <span class="text-label-tech">SURFACE VELOCITY</span>
+                        <div style="display: flex; align-items: baseline; gap: 8px;">
+                            <span id="card-windSpd" class="telemetry-val-xl digital-font" style="color: var(--accent);">--</span>
+                            <span class="unit-tag" style="color: rgba(252, 76, 1, 0.65);">KTS</span>
                         </div>
                     </div>
-                    <div class="readout-recessed p-8 flex flex-col items-center">
-                        <span class="text-label-tech mb-4">PEAK GUST</span>
-                        <div class="flex items-baseline gap-4">
-                            <span id="card-windGust" class="text-7xl font-black text-slate-300 digital-font">--</span>
-                            <span class="text-sm text-slate-500 font-black tracking-widest uppercase">KTS</span>
+                    <div class="readout-recessed telemetry-well">
+                        <span class="text-label-tech">PEAK GUST</span>
+                        <div style="display: flex; align-items: baseline; gap: 8px;">
+                            <span id="card-windGust" class="telemetry-val-xl digital-font" style="color: var(--fg-secondary);">--</span>
+                            <span class="unit-tag">KTS</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Meterology & Pressure -->
-            <div class="glass-panel p-8 rounded-[2rem] flex flex-col gap-8">
-                <header class="flex items-center gap-4 border-b border-white/5 pb-4">
-                    <div class="w-2 h-6 bg-blue-500 rounded-full shadow-[0_0_15px_#3b82f6]"></div>
-                    <h2 class="text-white text-sm font-black tracking-[0.4em] uppercase">METEROLOGY & PRESSURE</h2>
+            <!-- Meteorology & Pressure -->
+            <div class="rare-shell" style="display: flex; flex-direction: column; flex: 1.25;">
+                <header class="section-header">
+                    <div class="section-title-group">
+                        <div class="section-dot blue"></div>
+                        <h2 class="section-title">Meteorology & Pressure</h2>
+                    </div>
+                    <span class="text-label-tech">ATMOSPHERIC</span>
                 </header>
 
-                <div class="grid grid-cols-3 gap-6">
-                    <div class="readout-recessed p-6 flex flex-col items-center">
-                        <span class="text-label-tech mb-2">TEMPERATURE</span>
-                        <div class="flex items-baseline gap-1">
-                            <span id="card-temp" class="text-4xl font-black text-white digital-font">--</span>
-                            <span class="text-xs text-slate-500 font-black">°C</span>
+                <div class="grid-3">
+                    <div class="readout-recessed telemetry-well" style="padding: 20px 14px;">
+                        <span class="text-label-tech">TEMPERATURE</span>
+                        <div style="display: flex; align-items: baseline; gap: 4px;">
+                            <span id="card-temp" class="telemetry-val-md digital-font">--</span>
+                            <span class="unit-tag">°C</span>
                         </div>
                     </div>
-                    <div class="readout-recessed p-6 flex flex-col items-center">
-                        <span class="text-label-tech mb-2">DEW POINT</span>
-                        <div class="flex items-baseline gap-1">
-                            <span id="card-dew" class="text-4xl font-black text-white digital-font">--</span>
-                            <span class="text-xs text-slate-500 font-black">°C</span>
+                    <div class="readout-recessed telemetry-well" style="padding: 20px 14px;">
+                        <span class="text-label-tech">DEW POINT</span>
+                        <div style="display: flex; align-items: baseline; gap: 4px;">
+                            <span id="card-dew" class="telemetry-val-md digital-font">--</span>
+                            <span class="unit-tag">°C</span>
                         </div>
                     </div>
-                    <div class="readout-recessed p-6 flex flex-col items-center">
-                        <span class="text-label-tech mb-2">VISIBILITY</span>
-                        <div class="flex items-baseline gap-1">
-                            <span id="card-vis" class="text-4xl font-black text-white digital-font">----</span>
-                            <span class="text-xs text-slate-500 font-black">M</span>
+                    <div class="readout-recessed telemetry-well" style="padding: 20px 14px;">
+                        <span class="text-label-tech">VISIBILITY</span>
+                        <div style="display: flex; align-items: baseline; gap: 4px;">
+                            <span id="card-vis" class="telemetry-val-md digital-font">----</span>
+                            <span class="unit-tag">M</span>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-6">
-                    <div class="readout-recessed p-6 flex flex-col items-center">
-                        <span class="text-label-tech mb-2">ALTIMETER (QNH)</span>
-                        <div class="flex items-baseline gap-2">
-                            <span id="card-qnh" class="text-5xl font-black text-blue-400 digital-font">----</span>
-                            <span class="text-xs text-blue-500/50 font-black uppercase">hPa</span>
+                <div class="grid-2">
+                    <div class="readout-recessed telemetry-well">
+                        <span class="text-label-tech">ALTIMETER (QNH)</span>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="card-qnh" class="telemetry-val-lg digital-font" style="color: var(--blue);">----</span>
+                            <span class="unit-tag" style="color: rgba(77, 163, 255, 0.65);">hPa</span>
                         </div>
                     </div>
-                    <div class="readout-recessed p-6 flex flex-col items-center">
-                        <span class="text-label-tech mb-2">FIELD (QFE)</span>
-                        <div class="flex items-baseline gap-2">
-                            <span id="card-qfe" class="text-5xl font-black text-blue-400 digital-font">----</span>
-                            <span class="text-xs text-blue-500/50 font-black uppercase">hPa</span>
+                    <div class="readout-recessed telemetry-well">
+                        <span class="text-label-tech">FIELD (QFE)</span>
+                        <div style="display: flex; align-items: baseline; gap: 6px;">
+                            <span id="card-qfe" class="telemetry-val-lg digital-font" style="color: var(--blue);">----</span>
+                            <span class="unit-tag" style="color: rgba(77, 163, 255, 0.65);">hPa</span>
                         </div>
                     </div>
                 </div>
@@ -386,13 +603,13 @@
 
         function playGif(url) {
             const gif = document.getElementById('tempo-gif');
-            if(gif) {
+            if (gif) {
                 gif.src = url + "?" + new Date().getTime();
                 gif.style.display = 'block';
                 setTimeout(() => {
                     gif.style.display = 'none';
                     gif.src = "";
-                }, 5000); 
+                }, 5000);
             }
         }
 
@@ -409,13 +626,13 @@
                 updateUI();
                 if (statusText) {
                     statusText.innerText = "ONLINE";
-                    statusText.className = "text-green-500 font-black";
+                    statusText.className = "status-pill status-online";
                 }
-            } catch(e) {
+            } catch (e) {
                 console.error("Fetch error:", e);
                 if (statusText) {
                     statusText.innerText = "OFFLINE";
-                    statusText.className = "text-red-500 font-black";
+                    statusText.className = "status-pill status-offline";
                 }
             }
         }
@@ -436,7 +653,7 @@
             if (document.getElementById('card-vis')) document.getElementById('card-vis').innerText = localState.vis || 9999;
             if (document.getElementById('card-qnh')) document.getElementById('card-qnh').innerText = localState.qnh;
             if (document.getElementById('card-qfe')) document.getElementById('card-qfe').innerText = localState.qfe || 898;
-            
+
             if (compassSpeedDisplay) compassSpeedDisplay.innerText = localState.windSpd;
             if (dirTextDisplay) dirTextDisplay.innerText = dirStr + "°";
             updateArrowVisuals();
@@ -450,7 +667,7 @@
         function initCompassFace() {
             const faceContainer = document.getElementById('compass-face');
             if (!faceContainer) return;
-            const numberRadius = 175; 
+            const numberRadius = 172;
             for (let i = 10; i <= 360; i += 10) {
                 const label = document.createElement('div');
                 label.innerText = (i / 10).toString().padStart(2, '0');
@@ -479,15 +696,15 @@
             try {
                 const res = await fetch('/get_generator_settings');
                 const data = await res.json();
-                if(data.awos_airport_id) document.getElementById('page-title').innerText = data.awos_airport_id + " AWOS Display";
-                if(data.awos_rwy_top) {
+                if (data.awos_airport_id) document.getElementById('page-title').innerText = data.awos_airport_id + " AWOS Display";
+                if (data.awos_rwy_top) {
                     document.getElementById('rwy-top').innerText = data.awos_rwy_top;
                     let topHeading = parseInt(data.awos_rwy_top) * 10;
-                    if(isNaN(topHeading) || topHeading === 0) topHeading = 360;
+                    if (isNaN(topHeading) || topHeading === 0) topHeading = 360;
                     document.documentElement.style.setProperty('--rwy-rot', topHeading + 'deg');
                 }
-                if(data.awos_rwy_bottom) document.getElementById('rwy-bot').innerText = data.awos_rwy_bottom;
-            } catch(e) {}
+                if (data.awos_rwy_bottom) document.getElementById('rwy-bot').innerText = data.awos_rwy_bottom;
+            } catch (e) { }
         }
 
         initCompassFace();

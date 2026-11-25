@@ -1,69 +1,196 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Aerodrome Weather Observation System Control Unit">
     <title id="page-title">AWOS Control Unit</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body {
-            background-color: #020617;
-            -webkit-font-smoothing: antialiased;
-            background-image: 
-                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.4) 0%, rgba(2, 6, 23, 1) 100%),
-                linear-gradient(rgba(100, 150, 255, 0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(100, 150, 255, 0.04) 1px, transparent 1px);
-            background-size: 100% 100%, 40px 40px, 40px 40px;
+        :root {
+            --bg-canvas: #09090b;
+            --bg-shell: #121214;
+            --bg-well: #0c0c0e;
+            --bg-control: #242428;
+            --bg-control-hover: #2f2f35;
+            --fg-primary: #f5f5f7;
+            --fg-secondary: #a1a0ab;
+            --fg-muted: #6e6d78;
+            --accent: #fc4c01;
+            --green: #30d158;
+            --gold: #f2c14e;
+            --blue: #4da3ff;
+            --red: #ff453a;
+            --shadow-apple:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.075),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.09),
+                inset 0 -1px 0 0 rgba(0, 0, 0, 0.45),
+                0 2px 6px rgba(0, 0, 0, 0.35),
+                0 12px 32px rgba(0, 0, 0, 0.45);
+            --shadow-well:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.055),
+                inset 0 2px 8px rgba(0, 0, 0, 0.55);
+            --shadow-control:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+                inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+                0 1px 2px rgba(0, 0, 0, 0.35);
+            --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+            --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
         }
 
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+        * {
+            box-sizing: border-box;
+        }
 
-        .glass-panel {
+        ::selection {
+            background-color: rgba(252, 76, 1, 0.16);
+            color: #fc4c01;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            padding: 20px;
+            background-color: var(--bg-canvas);
+            color: var(--fg-primary);
+            font-family: var(--font-sans);
+            font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+            -webkit-font-smoothing: antialiased;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+
+        .awos-grid {
+            flex: 1;
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+            align-items: stretch;
+        }
+
+        .awos-col {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .rare-shell {
             position: relative;
-            background: rgba(15, 25, 40, 0.7);
-            backdrop-filter: blur(14px);
-            border: 1px solid rgba(140, 190, 255, 0.25);
-            border-top: 1px solid rgba(220, 240, 255, 0.45);
-            box-shadow: 
-                0 20px 50px rgba(0, 0, 0, 0.7), 
-                inset 0 1px 0 rgba(255, 255, 255, 0.1),
-                0 0 60px rgba(100, 170, 255, 0.05);
+            background: var(--bg-shell);
+            border-radius: 26px;
+            padding: 18px;
+            box-shadow: var(--shadow-apple);
             overflow: hidden;
         }
 
-        .glass-panel::before {
+        .rare-shell::before {
             content: '';
             position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(ellipse at 15% 10%, rgba(255, 255, 255, 0.1) 0%, transparent 60%);
+            inset: 0;
+            background: radial-gradient(120% 75% at 50% -10%, rgba(255, 255, 255, 0.05), transparent 60%);
             pointer-events: none;
+            z-index: 0;
+        }
+
+        .rare-shell > * {
+            position: relative;
             z-index: 1;
         }
 
-        .glass-panel::after {
-            content: '';
-            position: absolute;
-            top: 0; left: 10%; width: 80%; height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(180, 220, 255, 0.45), transparent);
-            pointer-events: none;
-            z-index: 2;
-        }
-
         .readout-recessed {
-            background: rgba(0, 0, 0, 0.5) !important;
-            border: 1px solid rgba(0, 0, 0, 0.6);
+            background: var(--bg-well);
             border-radius: 16px;
-            box-shadow: 
-                inset 0 8px 16px rgba(0, 0, 0, 1),
-                inset 0 1px 4px rgba(0, 0, 0, 0.8),
-                0 1px 0 rgba(255, 255, 255, 0.08);
+            box-shadow: var(--shadow-well);
         }
 
-        /* Compass specific styles */
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+        }
+
+        .section-title-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .section-dot.blue {
+            background: var(--blue);
+        }
+
+        .section-title {
+            margin: 0;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .label-tech {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            color: var(--fg-muted);
+        }
+
+        .digital-font {
+            font-family: var(--font-mono);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Compass */
+        .compass-stage {
+            padding: 28px;
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            min-height: 410px;
+        }
+
+        .bearing-overlay {
+            position: absolute;
+            top: 20px;
+            right: 24px;
+            text-align: right;
+            pointer-events: none;
+        }
+
+        .bearing-val {
+            font-size: 38px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--fg-primary);
+            line-height: 1.05;
+            margin-top: 2px;
+        }
+
         .compass-container {
             position: relative;
-            width: 400px; 
-            height: 400px;
+            width: 390px;
+            height: 390px;
             margin: 0 auto;
             user-select: none;
         }
@@ -73,124 +200,229 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 330px; 
-            height: 330px;
+            width: 312px;
+            height: 312px;
             border-radius: 50%;
-            border: 6px solid #1e293b;
-            background: radial-gradient(circle, #0f172a 0%, #020617 100%);
-            box-shadow: 0 0 40px rgba(0,0,0,0.9), inset 0 0 20px rgba(0,0,0,0.6);
+            background: radial-gradient(circle, #141417 0%, #09090b 100%);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+                inset 0 4px 20px rgba(0, 0, 0, 0.7),
+                0 8px 32px rgba(0, 0, 0, 0.65);
             z-index: 1;
         }
 
         .compass-number {
             position: absolute;
-            color: #94a3b8;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 800;
-            font-size: 16px;
+            color: var(--fg-muted);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            font-size: 13px;
             transform-origin: center;
             user-select: none;
             pointer-events: none;
             z-index: 10;
         }
-        
+
         .compass-number.cardinal {
-            color: #f97316;
-            font-size: 22px;
-            font-weight: 900;
-            text-shadow: 0 0 20px rgba(249, 115, 22, 0.5);
+            color: var(--accent);
+            font-size: 17px;
+            font-weight: 700;
         }
 
         .runway-line {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 24px; 
-            height: 360px; 
-            background: rgba(30, 41, 59, 0.5); 
-            border: 2px solid rgba(148, 163, 184, 0.2);
-            transform: translate(-50%, -50%) rotate(var(--rwy-rot, 30deg)); 
+            width: 24px;
+            height: 264px;
+            background: #1d1d21;
+            border-radius: 4px;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+            transform: translate(-50%, -50%) rotate(var(--rwy-rot, 30deg));
             pointer-events: none;
-            z-index: 2; 
+            z-index: 2;
         }
 
         .runway-line::after {
             content: '';
             position: absolute;
-            top: 5px; bottom: 5px; left: 50%;
+            top: 8px;
+            bottom: 8px;
+            left: 50%;
             transform: translateX(-50%);
             width: 2px;
-            background: repeating-linear-gradient(to bottom, 
-                rgba(255,255,255,0.3) 0, rgba(255,255,255,0.3) 10px, 
-                transparent 10px, transparent 20px
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(255, 255, 255, 0.35) 0,
+                rgba(255, 255, 255, 0.35) 10px,
+                transparent 10px,
+                transparent 20px
             );
         }
 
-        .runway-label-top {
-            position: absolute;
-            top: -20px; left: 50%;
-            transform: translateX(-50%);
-            color: #fff; font-size: 12px; font-weight: 900;
-        }
+        .runway-label-top,
         .runway-label-bottom {
             position: absolute;
-            bottom: -20px; left: 50%;
+            left: 50%;
+            color: var(--fg-primary);
+            font-size: 11px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        .runway-label-top {
+            top: -20px;
+            transform: translateX(-50%);
+        }
+
+        .runway-label-bottom {
+            bottom: -20px;
             transform: translateX(-50%) rotate(180deg);
-            color: #fff; font-size: 12px; font-weight: 900;
         }
 
         .compass-arrow {
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 6px;
-            height: 150px;
+            width: 4px;
+            height: 142px;
             background: transparent;
-            transform-origin: bottom center; 
-            transition: transform 2s cubic-bezier(0.4, 0, 0.2, 1); 
+            transform-origin: bottom center;
+            transition: transform 1.4s var(--ease-out-expo);
             z-index: 20;
+            pointer-events: none;
         }
 
         .arrow-head {
             position: absolute;
-            top: -15px; left: -10px;
-            border-left: 13px solid transparent;
-            border-right: 13px solid transparent;
-            border-bottom: 25px solid #ff7700; 
-            filter: drop-shadow(0 0 10px rgba(255, 119, 0, 0.5));
+            top: -13px;
+            left: -9px;
+            width: 0;
+            height: 0;
+            border-left: 11px solid transparent;
+            border-right: 11px solid transparent;
+            border-bottom: 20px solid var(--accent);
         }
-        
+
         .arrow-shaft {
             position: absolute;
-            bottom: 0; left: 0; width: 100%; height: 100%;
-            background: #ff7700;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
         }
 
         .speed-dial {
             position: absolute;
-            top: 50%; left: 50%;
+            top: 50%;
+            left: 50%;
             transform: translate(-50%, -50%);
-            width: 110px; height: 110px;
-            background: #020617;
-            border: 4px solid #1e293b;
+            width: 108px;
+            height: 108px;
+            background: #101013;
             border-radius: 50%;
             z-index: 30;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: 0 0 40px rgba(0,0,0,1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.10),
+                0 8px 28px rgba(0, 0, 0, 0.85);
         }
 
-        /* Stepper Buttons */
-        .stepper-btn {
-            background-color: #1e293b;
-            border: 1px solid #334155;
-            color: #fff;
-            font-weight: 900;
-            cursor: pointer;
-            transition: all 0.1s;
-            user-select: none;
+        .speed-dial-val {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+            margin-top: 2px;
         }
-        .stepper-btn:hover { background-color: #334155; transform: scale(1.05); }
-        .stepper-btn:active { background-color: #f97316; transform: scale(0.9); }
+
+        /* Preset & Stepper Controls */
+        .preset-row {
+            margin-top: 14px;
+            width: 100%;
+            display: flex;
+            gap: 10px;
+        }
+
+        .preset-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: none;
+            background: var(--bg-control);
+            color: var(--fg-primary);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            box-shadow: var(--shadow-control);
+            transition: background 0.16s ease, transform 0.16s var(--ease-out-expo);
+        }
+
+        .preset-btn:hover {
+            background: var(--bg-control-hover);
+        }
+
+        .preset-btn:active {
+            background: var(--accent);
+            color: #ffffff;
+            transform: scale(0.97);
+        }
+
+        .stepper-btn {
+            background-color: var(--bg-control);
+            border: none;
+            color: var(--fg-primary);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: var(--shadow-control);
+            transition: background 0.15s ease, transform 0.15s var(--ease-out-expo);
+            user-select: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .stepper-btn:hover {
+            background-color: var(--bg-control-hover);
+        }
+
+        .stepper-btn:active {
+            background-color: var(--accent);
+            color: #ffffff;
+            transform: scale(0.94);
+        }
+
+        .btn-tune {
+            width: 48px;
+            height: 38px;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .btn-step {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .btn-step-sm {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            font-size: 15px;
+            flex-shrink: 0;
+        }
 
         .input-bare {
             background: transparent;
@@ -198,208 +430,354 @@
             outline: none;
             text-align: center;
             width: 100%;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 900;
-            color: #fff;
-            font-size: 32px;
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--fg-primary);
+            font-size: 28px;
+            font-variant-numeric: tabular-nums;
         }
 
-        .digital-font { font-family: 'JetBrains Mono', monospace; font-weight: 900; }
-        .label-tech { font-size: 10px; text-transform: uppercase; font-weight: 900; letter-spacing: 0.2em; color: #4b5563; }
+        .input-bare.sm {
+            font-size: 21px;
+        }
 
-        @keyframes pulse-active { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
-        .led-active { animation: pulse-active 1s infinite; }
+        .input-bare.accent-blue {
+            color: var(--blue);
+            font-size: 25px;
+        }
 
-        /* Remove spinners */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .input-bare.muted {
+            color: var(--fg-secondary);
+        }
+
+        /* Status Bar & Fine Tune Bar */
+        .bar-panel {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+        }
+
+        .status-online {
+            background: rgba(48, 209, 88, 0.14);
+            color: var(--green);
+            box-shadow: inset 0 0 0 1px rgba(48, 209, 88, 0.25);
+        }
+
+        .status-offline {
+            background: rgba(255, 69, 58, 0.14);
+            color: var(--red);
+            box-shadow: inset 0 0 0 1px rgba(255, 69, 58, 0.25);
+        }
+
+        .led {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #3f3f46;
+            display: inline-block;
+            transition: background 0.15s ease;
+        }
+
+        .led.on {
+            background: var(--green);
+        }
+
+        .zulu-readout {
+            font-size: 26px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--fg-primary);
+        }
+
+        /* Grids inside right column */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            flex: 1;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            flex: 1;
+            margin-bottom: 12px;
+        }
+
+        .metric-well {
+            padding: 14px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .metric-control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 4px;
+        }
+
+        /* Override Buttons */
+        .override-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-override {
+            flex: 1;
+            padding: 15px 18px;
+            border-radius: 14px;
+            border: none;
+            font-family: var(--font-sans);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: filter 0.16s ease, transform 0.16s var(--ease-out-expo);
+        }
+
+        .btn-override:hover {
+            filter: brightness(1.12);
+        }
+
+        .btn-override:active {
+            transform: scale(0.97);
+        }
+
+        .btn-cut {
+            background: linear-gradient(135deg, #3c1818, #281010);
+            color: #ff6961;
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 69, 58, 0.28),
+                inset 0 1px 0 rgba(255, 120, 110, 0.14),
+                0 2px 8px rgba(0, 0, 0, 0.35);
+        }
+
+        .btn-keep {
+            background: linear-gradient(135deg, #193822, #112617);
+            color: var(--green);
+            box-shadow:
+                inset 0 0 0 1px rgba(48, 209, 88, 0.28),
+                inset 0 1px 0 rgba(110, 240, 150, 0.14),
+                0 2px 8px rgba(0, 0, 0, 0.35);
+        }
+
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        @media (max-width: 1024px) {
+            .awos-grid {
+                grid-template-columns: 1fr;
+            }
+        }
 
         @media (max-width: 640px) {
-            .compass-container { zoom: 0.7; }
-            .glass-panel { padding: 1rem !important; min-height: auto !important; }
-            .readout-recessed { padding: 0.75rem !important; }
-            .flex-col.gap-6 { gap: 1rem; }
-            .text-5xl { font-size: 2rem !important; }
-            .input-bare { font-size: 24px !important; }
-            #utc-clock { font-size: 1.5rem !important; }
+            body { padding: 12px; }
+            .compass-container { zoom: 0.72; }
+            .grid-3 { grid-template-columns: 1fr; }
+            .bar-panel { flex-direction: column; gap: 10px; align-items: flex-start; }
         }
     </style>
 </head>
-<body class="text-slate-200 min-h-screen flex flex-col p-4 font-sans overflow-x-hidden overflow-y-auto">
+<body>
 
-    <!-- Main Grid -->
-    <div class="flex-1 w-full grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch h-full">
-        
+    <div class="awos-grid">
         <!-- LEFT COLUMN: Compass & Base Controls -->
-        <div class="flex flex-col gap-6">
-            <!-- Compass Card -->
-            <div class="glass-panel p-8 rounded-[2rem] flex flex-col items-center justify-center min-h-[460px]">
-                <div class="readout-recessed p-10 w-full flex flex-col items-center justify-center relative overflow-visible h-full">
-                    <!-- Heading Readout -->
-                    <div class="absolute top-6 right-8 text-right pointer-events-none">
-                        <div class="label-tech mb-[-2px]">WIND BEARING</div>
-                        <div id="dir-text" class="text-5xl font-black text-white digital-font">340°</div>
+        <div class="awos-col">
+            <div class="rare-shell" style="display: flex; flex-direction: column; flex: 1;">
+                <div class="readout-recessed compass-stage">
+                    <div class="bearing-overlay">
+                        <div class="label-tech">WIND BEARING</div>
+                        <div id="dir-text" class="bearing-val digital-font">340°</div>
                     </div>
-                    
-                    <!-- Compass -->
-                    <div class="compass-container relative z-10" id="compass">
+
+                    <div class="compass-container" id="compass">
                         <div class="compass-ring">
                             <div class="runway-line">
                                 <span class="runway-label-top" id="rwy-top">03</span>
                                 <span class="runway-label-bottom" id="rwy-bot">21</span>
                             </div>
                         </div>
-                        <div id="compass-face" class="absolute inset-0 pointer-events-none"></div>
+                        <div id="compass-face" style="position: absolute; inset: 0; pointer-events: none;"></div>
                         <div class="compass-arrow" id="windArrow">
                             <div class="arrow-shaft"></div>
                             <div class="arrow-head"></div>
                         </div>
                         <div class="speed-dial">
-                            <span class="text-[10px] text-slate-500 font-black mb-1">KTS</span>
-                            <span id="compass-speed-display" class="text-4xl font-black text-orange-500 digital-font">12</span>
+                            <span class="label-tech" style="font-size: 9px;">KTS</span>
+                            <span id="compass-speed-display" class="speed-dial-val digital-font">12</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Direction Presets -->
-                <div class="mt-8 w-full flex gap-4">
-                    <button id="btn-rwy-top" onclick="setDir(30)" class="flex-1 bg-slate-800 hover:bg-slate-700 active:bg-orange-600 border border-slate-600 rounded-lg py-4 text-[10px] font-black text-white transition-all uppercase tracking-[.3em]">
-                        RWY 03
-                    </button>
-                    <button id="btn-rwy-bot" onclick="setDir(210)" class="flex-1 bg-slate-800 hover:bg-slate-700 active:bg-orange-600 border border-slate-600 rounded-lg py-4 text-[10px] font-black text-white transition-all uppercase tracking-[.3em]">
-                        RWY 21
-                    </button>
+                <div class="preset-row">
+                    <button id="btn-rwy-top" onclick="setDir(30)" class="preset-btn">RWY 03</button>
+                    <button id="btn-rwy-bot" onclick="setDir(210)" class="preset-btn">RWY 21</button>
                 </div>
             </div>
 
-            <!-- Status & Clock Panel (Mirroring Display) -->
-            <div class="readout-recessed p-6 flex justify-between items-center bg-black/40">
-                <div class="flex flex-col">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-slate-500 font-black tracking-[0.4em] text-[9px] uppercase">LINK STATUS: <span id="conn-status" class="text-green-500 led-active">ONLINE</span></span>
-                        <div id="led-rx" class="led" style="width: 6px; height: 6px;"></div>
+            <!-- Status & Clock Panel -->
+            <div class="rare-shell bar-panel">
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="label-tech">LINK STATUS</span>
+                        <span id="conn-status" class="status-pill status-online">ONLINE</span>
+                        <div id="led-rx" class="led"></div>
                     </div>
-                    <span class="label-tech">ZULU TIME REFERENCE</span>
+                    <span class="label-tech" style="color: rgba(255,255,255,0.32);">ZULU TIME REFERENCE</span>
                 </div>
-                <div id="utc-clock" class="text-3xl font-black text-white digital-font">00:00:00 Z</div>
+                <div id="utc-clock" class="zulu-readout digital-font">00:00:00 Z</div>
             </div>
 
             <!-- Fine Direction Adjustment -->
-            <div class="readout-recessed p-4 flex justify-between items-center bg-black/40">
-                <span class="label-tech ml-2">HEADING FINE TUNE</span>
-                <div class="flex gap-2">
-                    <button class="stepper-btn w-12 h-10 rounded-lg text-sm" onclick="adjustDir(-10)">-10°</button>
-                    <button class="stepper-btn w-12 h-10 rounded-lg text-sm" onclick="adjustDir(-1)">-1°</button>
-                    <input type="number" id="val-windDir" value="340" onchange="manualDirInput(this.value)" class="input-bare w-16 !text-xl">
-                    <button class="stepper-btn w-12 h-10 rounded-lg text-sm" onclick="adjustDir(1)">+1°</button>
-                    <button class="stepper-btn w-12 h-10 rounded-lg text-sm" onclick="adjustDir(10)">+10°</button>
+            <div class="rare-shell bar-panel" style="padding: 12px 18px;">
+                <span class="label-tech">HEADING FINE TUNE</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <button class="stepper-btn btn-tune" onclick="adjustDir(-10)">-10°</button>
+                    <button class="stepper-btn btn-tune" onclick="adjustDir(-1)">-1°</button>
+                    <input type="number" id="val-windDir" value="340" onchange="manualDirInput(this.value)" class="input-bare sm" style="width: 68px;">
+                    <button class="stepper-btn btn-tune" onclick="adjustDir(1)">+1°</button>
+                    <button class="stepper-btn btn-tune" onclick="adjustDir(10)">+10°</button>
                 </div>
             </div>
         </div>
 
         <!-- RIGHT COLUMN: Telemetry Inputs -->
-        <div class="flex flex-col gap-6">
-            
+        <div class="awos-col">
             <!-- Wind Specs -->
-            <div class="glass-panel p-4 rounded-[1.5rem] flex flex-col gap-3 flex-1">
-                <header class="flex items-center gap-3 border-b border-white/5 pb-1.5">
-                    <div class="w-1.5 h-4 bg-orange-500 rounded-full"></div>
-                    <h2 class="text-white text-[10px] font-black tracking-[.2em] uppercase">WIND TELEMETRY</h2>
+            <div class="rare-shell" style="display: flex; flex-direction: column; flex: 1;">
+                <header class="section-header">
+                    <div class="section-title-group">
+                        <div class="section-dot"></div>
+                        <h2 class="section-title">Wind Telemetry</h2>
+                    </div>
+                    <span class="label-tech">SURFACE KTS</span>
                 </header>
-                <div class="grid grid-cols-2 gap-3 flex-1">
-                    <div class="readout-recessed p-3 flex flex-col items-center justify-center">
-                        <label class="label-tech mb-2">VELOCITY</label>
-                        <div class="flex items-center justify-between w-full px-2">
-                            <button class="stepper-btn w-9 h-9 rounded-lg" onclick="adjustValue('windSpd', -1)">-</button>
+                <div class="grid-2">
+                    <div class="readout-recessed metric-well">
+                        <label class="label-tech">VELOCITY</label>
+                        <div class="metric-control-row">
+                            <button class="stepper-btn btn-step" onclick="adjustValue('windSpd', -1)">−</button>
                             <input type="number" id="val-windSpd" value="12" onchange="manualInput('windSpd', this.value)" class="input-bare">
-                            <button class="stepper-btn w-9 h-9 rounded-lg" onclick="adjustValue('windSpd', 1)">+</button>
+                            <button class="stepper-btn btn-step" onclick="adjustValue('windSpd', 1)">+</button>
                         </div>
                     </div>
-                    <div class="readout-recessed p-3 flex flex-col items-center justify-center">
-                        <label class="label-tech mb-2">MAX GUST</label>
-                        <div class="flex items-center justify-between w-full px-2">
-                            <button class="stepper-btn w-9 h-9 rounded-lg" onclick="adjustValue('windGust', -1)">-</button>
-                            <input type="number" id="val-windGust" value="0" onchange="manualInput('windGust', this.value)" class="input-bare text-slate-400">
-                            <button class="stepper-btn w-9 h-9 rounded-lg" onclick="adjustValue('windGust', 1)">+</button>
+                    <div class="readout-recessed metric-well">
+                        <label class="label-tech">MAX GUST</label>
+                        <div class="metric-control-row">
+                            <button class="stepper-btn btn-step" onclick="adjustValue('windGust', -1)">−</button>
+                            <input type="number" id="val-windGust" value="0" onchange="manualInput('windGust', this.value)" class="input-bare muted">
+                            <button class="stepper-btn btn-step" onclick="adjustValue('windGust', 1)">+</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Meteorological -->
-            <div class="glass-panel p-4 rounded-[1.5rem] flex flex-col gap-3 flex-1">
-                <header class="flex items-center gap-3 border-b border-white/5 pb-1.5">
-                    <div class="w-1.5 h-4 bg-blue-500 rounded-full"></div>
-                    <h2 class="text-white text-[10px] font-black tracking-[.2em] uppercase">METEROLOGY & PRESSURE</h2>
+            <div class="rare-shell" style="display: flex; flex-direction: column; flex: 1.3;">
+                <header class="section-header">
+                    <div class="section-title-group">
+                        <div class="section-dot blue"></div>
+                        <h2 class="section-title">Meteorology & Pressure</h2>
+                    </div>
+                    <span class="label-tech">METAR / QNH</span>
                 </header>
-                <div class="grid grid-cols-3 gap-2 flex-1">
-                    <div class="readout-recessed p-2.5 flex flex-col items-center justify-center">
-                        <label class="label-tech mb-1">TEMP</label>
-                        <div class="flex items-center justify-between w-full">
-                            <button class="stepper-btn w-8 h-8 rounded-md" onclick="adjustValue('temp', -1)">-</button>
-                            <input type="number" id="val-temp" value="18" onchange="manualInput('temp', this.value)" class="input-bare !text-xl">
-                            <button class="stepper-btn w-8 h-8 rounded-md" onclick="adjustValue('temp', 1)">+</button>
+                <div class="grid-3">
+                    <div class="readout-recessed metric-well">
+                        <label class="label-tech">TEMP (°C)</label>
+                        <div class="metric-control-row">
+                            <button class="stepper-btn btn-step-sm" onclick="adjustValue('temp', -1)">−</button>
+                            <input type="number" id="val-temp" value="18" onchange="manualInput('temp', this.value)" class="input-bare sm">
+                            <button class="stepper-btn btn-step-sm" onclick="adjustValue('temp', 1)">+</button>
                         </div>
                     </div>
-                    <div class="readout-recessed p-2.5 flex flex-col items-center justify-center">
-                        <label class="label-tech mb-1">DEW PT</label>
-                        <div class="flex items-center justify-between w-full">
-                            <button class="stepper-btn w-8 h-8 rounded-md" onclick="adjustValue('dew', -1)">-</button>
-                            <input type="number" id="val-dew" value="10" onchange="manualInput('dew', this.value)" class="input-bare !text-xl">
-                            <button class="stepper-btn w-8 h-8 rounded-md" onclick="adjustValue('dew', 1)">+</button>
+                    <div class="readout-recessed metric-well">
+                        <label class="label-tech">DEW PT (°C)</label>
+                        <div class="metric-control-row">
+                            <button class="stepper-btn btn-step-sm" onclick="adjustValue('dew', -1)">−</button>
+                            <input type="number" id="val-dew" value="10" onchange="manualInput('dew', this.value)" class="input-bare sm">
+                            <button class="stepper-btn btn-step-sm" onclick="adjustValue('dew', 1)">+</button>
                         </div>
                     </div>
-                    <div class="readout-recessed p-2.5 flex flex-col items-center justify-center">
-                        <label class="label-tech mb-1">VIS</label>
-                        <div class="flex items-center justify-between w-full">
-                            <button class="stepper-btn w-8 h-8 rounded-md" onclick="adjustValue('vis', -100)">-</button>
-                            <input type="number" id="val-vis" value="9999" onchange="manualInput('vis', this.value)" class="input-bare !text-xl">
-                            <button class="stepper-btn w-8 h-8 rounded-md" onclick="adjustValue('vis', 100)">+</button>
+                    <div class="readout-recessed metric-well">
+                        <label class="label-tech">VIS (M)</label>
+                        <div class="metric-control-row">
+                            <button class="stepper-btn btn-step-sm" onclick="adjustValue('vis', -100)">−</button>
+                            <input type="number" id="val-vis" value="9999" onchange="manualInput('vis', this.value)" class="input-bare sm">
+                            <button class="stepper-btn btn-step-sm" onclick="adjustValue('vis', 100)">+</button>
                         </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-3 flex-1">
-                    <div class="readout-recessed p-3 flex flex-col items-center justify-center">
-                        <label class="label-tech mb-1">QNH</label>
-                        <div class="flex items-center justify-between w-full px-1">
-                            <button class="stepper-btn w-9 h-9 rounded-lg" onclick="adjustValue('qnh', -1)">-</button>
-                            <input type="number" id="val-qnh" value="1013" onchange="manualInput('qnh', this.value)" class="input-bare text-2xl text-blue-400">
-                            <button class="stepper-btn w-9 h-9 rounded-lg" onclick="adjustValue('qnh', 1)">+</button>
+                <div class="grid-2">
+                    <div class="readout-recessed metric-well">
+                        <label class="label-tech">QNH (hPa)</label>
+                        <div class="metric-control-row">
+                            <button class="stepper-btn btn-step" onclick="adjustValue('qnh', -1)">−</button>
+                            <input type="number" id="val-qnh" value="1013" onchange="manualInput('qnh', this.value)" class="input-bare accent-blue">
+                            <button class="stepper-btn btn-step" onclick="adjustValue('qnh', 1)">+</button>
                         </div>
                     </div>
-                    <div class="readout-recessed p-3 flex flex-col items-center justify-center">
-                        <label class="label-tech mb-1">QFE</label>
-                        <div class="flex items-center justify-between w-full px-1">
-                            <button class="stepper-btn w-9 h-9 rounded-lg" onclick="adjustValue('qfe', -1)">-</button>
-                            <input type="number" id="val-qfe" value="898" onchange="manualInput('qfe', this.value)" class="input-bare text-2xl text-blue-400">
-                            <button class="stepper-btn w-9 h-9 rounded-lg" onclick="adjustValue('qfe', 1)">+</button>
+                    <div class="readout-recessed metric-well">
+                        <label class="label-tech">QFE (hPa)</label>
+                        <div class="metric-control-row">
+                            <button class="stepper-btn btn-step" onclick="adjustValue('qfe', -1)">−</button>
+                            <input type="number" id="val-qfe" value="898" onchange="manualInput('qfe', this.value)" class="input-bare accent-blue">
+                            <button class="stepper-btn btn-step" onclick="adjustValue('qfe', 1)">+</button>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- System Overrides -->
-            <div class="readout-recessed p-4 flex flex-col gap-2 border-orange-500/30 border-2">
-                <div class="flex gap-4">
-                    <button onclick="triggerTempo()" class="flex-1 bg-red-950/80 hover:bg-red-800 border border-red-500/50 text-white font-black py-4 rounded-lg shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 text-sm uppercase tracking-widest leading-none">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
+            <div class="rare-shell" style="padding: 14px;">
+                <div class="override-row">
+                    <button onclick="triggerTempo()" class="btn-override btn-cut">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect><line x1="9" y1="9" x2="15" y2="15"></line><line x1="15" y1="9" x2="9" y2="15"></line></svg>
                         CUT IT
                     </button>
-                    <button onclick="triggerKeepGoing()" class="flex-1 bg-green-950/80 hover:bg-green-800 border border-green-500/50 text-white font-black py-4 rounded-lg shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 text-sm uppercase tracking-widest leading-none">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                    <button onclick="triggerKeepGoing()" class="btn-override btn-keep">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
                         KEEP GOING
                     </button>
                 </div>
             </div>
         </div>
-
     </div>
 
     <!-- Tempo GIF (Hidden) -->
     <img id="tempo-gif" src="" style="display: none; position: fixed; inset: 0; margin: auto; width: 100vw; height: 100vh; object-fit: contain; background: rgba(0,0,0,0.95); z-index: 9999;" />
 
     <script>
-        // --- STATE ---
         let localState = {
             windDir: 340, windSpd: 12, windGust: 0,
             temp: 18, dew: 10, vis: 9999, qnh: 1013, qfe: 898
@@ -409,7 +787,6 @@
         const compassSpeedDisplay = document.getElementById('compass-speed-display');
         const dirTextDisplay = document.getElementById('dir-text');
 
-        // --- FETCHING ---
         async function fetchFromServer() {
             try {
                 const res = await fetch('/get_awos');
@@ -421,14 +798,14 @@
                 const statusEl = document.getElementById('conn-status');
                 if (statusEl) {
                     statusEl.innerText = "ONLINE";
-                    statusEl.className = "text-green-500 led-active font-black";
+                    statusEl.className = "status-pill status-online";
                 }
-            } catch(e) { 
-                console.error("Fetch Err:", e); 
+            } catch (e) {
+                console.error("Fetch Err:", e);
                 const statusEl = document.getElementById('conn-status');
                 if (statusEl) {
                     statusEl.innerText = "OFFLINE";
-                    statusEl.className = "text-red-500 font-black";
+                    statusEl.className = "status-pill status-offline";
                 }
             }
         }
@@ -448,25 +825,21 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(localState)
                 });
-            } catch(e) { console.error("Save Err:", e); }
+            } catch (e) { console.error("Save Err:", e); }
         }
 
-        // --- UI UPDATES ---
         function updateUI() {
-            // Update Inputs
             Object.keys(localState).forEach(key => {
                 const el = document.getElementById('val-' + key);
                 if (el) el.value = localState[key];
             });
 
-            // Update Compass
             const dirStr = localState.windDir.toString().padStart(3, '0');
             compassSpeedDisplay.innerText = localState.windSpd;
             dirTextDisplay.innerText = dirStr + "°";
             arrow.style.transform = `translate(-50%, -100%) rotate(${localState.windDir}deg)`;
         }
 
-        // --- CONTROLS ---
         function adjustValue(key, delta) {
             let newVal = parseInt(localState[key] || 0) + delta;
             if (key !== 'temp' && key !== 'dew') newVal = Math.max(0, newVal);
@@ -524,7 +897,7 @@
 
         function initCompassFace() {
             const faceContainer = document.getElementById('compass-face');
-            const radius = 170; 
+            const radius = 172;
             for (let i = 10; i <= 360; i += 10) {
                 const label = document.createElement('div');
                 label.innerText = (i / 10).toString().padStart(2, '0');
@@ -541,38 +914,41 @@
 
         function updateClock() {
             const now = new Date();
-            document.getElementById('utc-clock').innerText = now.getUTCHours().toString().padStart(2, '0') + ":" + now.getUTCMinutes().toString().padStart(2, '0') + ":" + now.getUTCSeconds().toString().padStart(2, '0') + " Z";
+            document.getElementById('utc-clock').innerText =
+                now.getUTCHours().toString().padStart(2, '0') + ":" +
+                now.getUTCMinutes().toString().padStart(2, '0') + ":" +
+                now.getUTCSeconds().toString().padStart(2, '0') + " Z";
         }
 
         async function initSettings() {
             try {
                 const res = await fetch('/get_generator_settings');
                 const data = await res.json();
-                if(data.awos_airport_id) document.getElementById('page-title').innerText = data.awos_airport_id + " AWOS Control Unit";
-                
+                if (data.awos_airport_id) document.getElementById('page-title').innerText = data.awos_airport_id + " AWOS Control Unit";
+
                 let rwyTopText = data.awos_rwy_top || '03';
                 let rwyBotText = data.awos_rwy_bottom || '21';
-                
+
                 let topHeading = parseInt(rwyTopText) * 10;
                 let botHeading = parseInt(rwyBotText) * 10;
 
-                if(isNaN(topHeading) || topHeading === 0) topHeading = 360;
-                if(isNaN(botHeading) || botHeading === 0) botHeading = 360;
-                
+                if (isNaN(topHeading) || topHeading === 0) topHeading = 360;
+                if (isNaN(botHeading) || botHeading === 0) botHeading = 360;
+
                 document.getElementById('rwy-top').innerText = rwyTopText;
                 document.getElementById('rwy-bot').innerText = rwyBotText;
                 document.documentElement.style.setProperty('--rwy-rot', topHeading + 'deg');
-                
+
                 const btnTop = document.getElementById('btn-rwy-top');
                 const btnBot = document.getElementById('btn-rwy-bot');
-                
-                btnTop.innerText = "RWY " + rwyTopText;
-                btnTop.onclick = function() { setDir(topHeading); };
-                
-                btnBot.innerText = "RWY " + rwyBotText;
-                btnBot.onclick = function() { setDir(botHeading); };
 
-            } catch(e) {}
+                btnTop.innerText = "RWY " + rwyTopText;
+                btnTop.onclick = function () { setDir(topHeading); };
+
+                btnBot.innerText = "RWY " + rwyBotText;
+                btnBot.onclick = function () { setDir(botHeading); };
+
+            } catch (e) { }
         }
 
         initCompassFace();
